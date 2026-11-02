@@ -1,0 +1,2405 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Сервис Анти-Отчеты — Демо-прототип упаковки ролей</title>
+  <meta name="description" content="Интерактивный демо-прототип системы упаковки должностей и регламентации Анти-Отчеты." />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Onest:wght@400;500;600;700&family=Unbounded:wght@600;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['Unbounded', 'sans-serif'],
+            sans: ['Onest', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            stone: {
+              bg: '#F6F5F2',
+              surface: '#FFFFFF',
+              subtle: '#EFECE6',
+              line: '#E2DFD7'
+            },
+            obsidian: {
+              DEFAULT: '#141619',
+              card: '#1C1F24',
+              hover: '#252930',
+              line: '#2E333B'
+            },
+            ink: {
+              DEFAULT: '#141619',
+              secondary: '#525866',
+              muted: '#848B98'
+            },
+            signal: {
+              DEFAULT: '#FF4D1C',
+              hover: '#E03E10',
+              soft: 'rgba(255, 77, 28, 0.08)'
+            },
+            tag: {
+              blue: '#1D4ED8',
+              blueBg: '#F0F6FF',
+              blueBorder: '#CFE2FF',
+              green: '#047857',
+              greenBg: '#EEFBF5',
+              greenBorder: '#C3F0DC',
+              yellow: '#B45309',
+              yellowBg: '#FFFBEB',
+              yellowBorder: '#FDE68A',
+              purple: '#6D28D9',
+              purpleBg: '#F6F3FF',
+              purpleBorder: '#E4D9FF'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      background-color: #F6F5F2;
+      color: #141619;
+      font-family: 'Onest', sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* Тонкий спокойный скроллбар */
+    .custom-scroll::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #D5D1C8;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+      background: #9E988E;
+    }
+
+    /* Акцентная кнопка продукта — чистая, без тяжелых бруталистских теней */
+    .btn-signal {
+      background-color: #FF4D1C;
+      color: #FFFFFF;
+      transition: background-color 0.15s ease, transform 0.15s ease;
+    }
+    .btn-signal:hover {
+      background-color: #E03E10;
+    }
+    .btn-signal:active {
+      transform: translateY(1px);
+    }
+
+    /* Элемент списка ролей слева */
+    .role-nav-item {
+      transition: all 0.15s ease;
+      border-left: 3px solid transparent;
+    }
+    .role-nav-item:hover {
+      background-color: #F6F5F2;
+    }
+    .role-nav-item.active {
+      background-color: #FFFFFF;
+      border-color: #E2DFD7;
+      border-left-color: #FF4D1C;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+
+    /* Карточка документа справа */
+    .doc-card {
+      transition: all 0.15s ease;
+    }
+    .doc-card:hover {
+      border-color: #141619;
+      background-color: #FAF9F6;
+    }
+
+    /* Всплывающая подсказка по документу (Pop-up Tooltip) */
+    .doc-tooltip-trigger {
+      position: static;
+    }
+    .doc-tooltip-box {
+      visibility: hidden;
+      opacity: 0;
+      transform: translateY(4px);
+      transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+      pointer-events: none;
+    }
+    .doc-tooltip-trigger:hover .doc-tooltip-box,
+    .doc-tooltip-trigger:focus-within .doc-tooltip-box,
+    .doc-tooltip-trigger.tooltip-open .doc-tooltip-box {
+      visibility: visible;
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Пульсация записи микрофона */
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); opacity: 0.9; }
+      50% { transform: scale(1.15); opacity: 0.4; }
+      100% { transform: scale(0.95); opacity: 0.9; }
+    }
+    .recording-pulse {
+      animation: pulse-ring 1.4s infinite ease-in-out;
+    }
+
+    /* Чистая типографика внутри окна чтения документа */
+    .doc-content h2 {
+      font-family: 'Onest', sans-serif;
+      font-size: 1.125rem;
+      font-weight: 700;
+      margin-top: 1.75rem;
+      margin-bottom: 0.75rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid #E2DFD7;
+      color: #141619;
+    }
+    .doc-content h2:first-child {
+      margin-top: 0;
+    }
+    .doc-content p {
+      margin-bottom: 0.85rem;
+      line-height: 1.65;
+      color: #333740;
+    }
+    .doc-content ul {
+      list-style: none;
+      padding-left: 0;
+      margin-bottom: 1.25rem;
+    }
+    .doc-content ul li {
+      position: relative;
+      padding-left: 1.15rem;
+      margin-bottom: 0.5rem;
+      line-height: 1.6;
+      color: #333740;
+    }
+    .doc-content ul li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0.55rem;
+      width: 5px;
+      height: 5px;
+      background-color: #FF4D1C;
+    }
+    .doc-content table {
+      width: 100%;
+      min-width: 480px;
+      border-collapse: collapse;
+      margin: 1rem 0 1.5rem 0;
+      font-size: 0.875rem;
+    }
+    .doc-content th {
+      background-color: #F6F5F2;
+      color: #141619;
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-align: left;
+      padding: 0.75rem 1rem;
+      border: 1px solid #E2DFD7;
+    }
+    .doc-content td {
+      padding: 0.75rem 1rem;
+      border: 1px solid #E2DFD7;
+      background-color: #FFFFFF;
+      vertical-align: top;
+    }
+  </style>
+</head>
+<body class="h-screen h-[100dvh] flex flex-col overflow-hidden selection:bg-signal selection:text-white">
+
+  <!-- =========================================================================
+       ШАПКА ПРИЛОЖЕНИЯ (СПОКОЙНАЯ ПРОДУКТОВАЯ ПАНЕЛЬ)
+       ========================================================================= -->
+  <header class="h-14 sm:h-16 shrink-0 bg-white border-b border-stone-line px-4 sm:px-6 flex items-center justify-between gap-4 z-30">
+    
+    <!-- Слева: Возврат на сайт и название сервиса -->
+    <div class="flex items-center gap-3 sm:gap-4 min-w-0">
+      <a
+        href="index.html"
+        class="inline-flex items-center gap-1.5 px-3 h-9 border border-stone-line bg-stone-bg hover:border-ink hover:bg-white text-xs font-medium text-ink transition-colors shrink-0"
+      >
+        <span>← На сайт</span>
+      </a>
+
+      <div class="h-4 w-px bg-stone-line hidden sm:block"></div>
+
+      <div class="flex items-center gap-2.5 truncate">
+        <span class="w-2 h-2 bg-signal shrink-0"></span>
+        <span class="font-semibold text-sm sm:text-base text-ink truncate">
+          Анти-Отчеты
+        </span>
+        <span class="hidden md:inline-block text-xs text-ink-muted bg-stone-bg px-2 py-0.5 border border-stone-line">
+          Демо-режим
+        </span>
+      </div>
+    </div>
+
+    <!-- По центру: Понятная подсказка, как устроен экран -->
+    <div class="hidden xl:flex items-center gap-2 text-xs text-ink-secondary">
+      <span class="font-medium text-ink">Как посмотреть демо:</span>
+      <span>1. Выберите должность слева</span>
+      <span class="text-ink-muted">→</span>
+      <span>2. Проверьте ответы в центре</span>
+      <span class="text-ink-muted">→</span>
+      <span>3. Откройте готовые документы справа</span>
+    </div>
+
+    <!-- Справа: Кнопка подключения -->
+    <div class="flex items-center gap-3 shrink-0">
+      <button
+        type="button"
+        onclick="openConversionModal('Заявка на подключение системы «Анти-Отчёты»')"
+        class="btn-signal px-4 h-9 text-xs font-semibold inline-flex items-center gap-2"
+      >
+        <span>Подключить систему</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- =========================================================================
+       МОБИЛЬНЫЕ ВКЛАДКИ (< 1024px)
+       ========================================================================= -->
+  <div class="lg:hidden shrink-0 bg-white border-b border-stone-line grid grid-cols-3 text-xs font-medium">
+    <button
+      type="button"
+      id="mobTabRoles"
+      onclick="switchMobileTab('roles')"
+      class="py-3 px-2 border-r border-stone-line text-center border-b-2 border-b-transparent text-ink-secondary"
+    >
+      1. Должности (5)
+    </button>
+    <button
+      type="button"
+      id="mobTabCenter"
+      onclick="switchMobileTab('center')"
+      class="py-3 px-2 border-r border-stone-line text-center border-b-2 border-b-signal text-ink font-semibold bg-stone-bg/50"
+    >
+      2. Ответы
+    </button>
+    <button
+      type="button"
+      id="mobTabDocs"
+      onclick="switchMobileTab('docs')"
+      class="py-3 px-2 text-center border-b-2 border-b-transparent text-ink-secondary"
+    >
+      3. Документы (10)
+    </button>
+  </div>
+
+  <!-- =========================================================================
+       ОСНОВНОЙ ТРЕХКОЛОНОЧНЫЙ ИНТЕРФЕЙС
+       ========================================================================= -->
+  <main class="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
+
+    <!-- =======================================================================
+         КОЛОНКА 1 (СЛЕВА — 3 ИЗ 12): СПИСОК ДОЛЖНОСТЕЙ
+         ======================================================================= -->
+    <aside
+      id="panelRoles"
+      class="hidden lg:flex lg:col-span-3 flex-col h-full min-h-0 bg-stone-bg/70 border-r border-stone-line overflow-hidden"
+    >
+      <!-- Кнопка добавления своей должности -->
+      <div class="p-4 sm:p-5 border-b border-stone-line bg-white shrink-0">
+        <button
+          type="button"
+          id="btnAddRole"
+          onclick="activateAddRoleMode()"
+          class="btn-signal w-full py-3 px-4 text-xs sm:text-sm font-semibold flex items-center justify-between"
+        >
+          <span class="flex items-center gap-2">
+            <span class="text-base leading-none">+</span>
+            <span>Добавить свою должность</span>
+          </span>
+          <span class="text-[11px] font-normal bg-black/15 px-2 py-0.5">Голосом</span>
+        </button>
+      </div>
+
+      <!-- Заголовок списка -->
+      <div class="px-5 pt-4 pb-2 flex items-center justify-between shrink-0">
+        <span class="text-xs font-semibold text-ink-secondary">
+          Готовые примеры (5)
+        </span>
+        <span class="text-[11px] text-ink-muted">
+          Нажмите для просмотра
+        </span>
+      </div>
+
+      <!-- Список из 5 ролей -->
+      <div class="flex-1 overflow-y-auto custom-scroll px-4 pb-4 space-y-1.5" id="rolesListContainer">
+        <!-- Рендерится из ROLES_DATA -->
+      </div>
+
+      <!-- Минималистичная сводка по работе системы внизу -->
+      <div class="p-4 border-t border-stone-line bg-white shrink-0">
+        <div class="text-xs font-medium text-ink">
+          1 рассказ голосом → 10 документов
+        </div>
+        <p class="text-[11px] text-ink-muted mt-1 leading-relaxed">
+          Система извлекает ответы по 8 ключевым вопросам и автоматически собирает полный пакет регламентов должности.
+        </p>
+      </div>
+    </aside>
+
+    <!-- =======================================================================
+         КОЛОНКА 2 (ЦЕНТР — 5 ИЗ 12): РАЗБОР ОТВЕТОВ РУКОВОДИТЕЛЯ
+         ======================================================================= -->
+    <section
+      id="panelCenter"
+      class="flex lg:col-span-5 flex-col h-full min-h-0 bg-stone-bg overflow-y-auto custom-scroll p-4 sm:p-6 lg:p-8"
+    >
+      <div id="centerWorkspaceContent" class="space-y-5 pb-10 max-w-2xl mx-auto w-full"></div>
+    </section>
+
+    <!-- =======================================================================
+         КОЛОНКА 3 (СПРАВА — 4 ИЗ 12): ГОТОВЫЕ ДОКУМЕНТЫ ДОЛЖНОСТИ
+         ======================================================================= -->
+    <aside
+      id="panelDocs"
+      class="hidden lg:flex lg:col-span-4 flex-col h-full min-h-0 bg-white border-l border-stone-line overflow-y-auto custom-scroll p-4 sm:p-6 lg:p-7"
+    >
+      <div id="rightDocsContent" class="space-y-4 pb-10"></div>
+    </aside>
+
+  </main>
+
+  <!-- =========================================================================
+       ОКНО ЧТЕНИЯ ДОКУМЕНТА (DOCUMENT VIEWER MODAL)
+       ========================================================================= -->
+  <div
+    id="docViewerModal"
+    onclick="if(event.target === this) closeDocViewer()"
+    class="fixed inset-0 z-40 hidden items-center justify-center p-3 sm:p-6 lg:p-10 bg-black/50 backdrop-blur-xs"
+  >
+    <div class="w-full max-w-5xl h-[88vh] h-[88dvh] bg-white border border-stone-line flex flex-col shadow-xl overflow-hidden">
+      
+      <!-- Шапка окна чтения -->
+      <div class="px-6 py-4 bg-white border-b border-stone-line flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+        <div>
+          <div id="viewerRoleBadge" class="text-xs text-ink-muted">
+            Пакет документов должности (10 инструментов)
+          </div>
+          <h3 id="viewerRoleTitle" class="font-bold text-base sm:text-lg text-ink mt-0.5">
+            Руководитель отдела маркетинга (РОМ)
+          </h3>
+        </div>
+
+        <div class="flex items-center gap-2.5 shrink-0">
+          <button
+            type="button"
+            onclick="triggerGenerationWithFeedback('Скачивание пакета из 10 документов (.PDF / .DOCX)')"
+            class="px-3.5 h-9 border border-stone-line bg-stone-bg hover:border-ink text-ink text-xs font-medium transition-colors"
+          >
+            Скачать весь пакет (.PDF / .DOCX)
+          </button>
+          <button
+            type="button"
+            onclick="closeDocViewer()"
+            aria-label="Закрыть документ"
+            class="w-9 h-9 border border-stone-line bg-white hover:bg-stone-bg text-ink flex items-center justify-center text-sm transition-colors"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+
+      <!-- Двухколоночное тело окна: слева компактный список из 10 документов, справа текст -->
+      <div class="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden">
+        <!-- Левое меню из 10 документов внутри модалки -->
+        <div
+          id="viewerTabsBar"
+          class="w-full md:w-72 bg-stone-bg border-b md:border-b-0 md:border-r border-stone-line overflow-x-auto md:overflow-y-auto custom-scroll p-2.5 flex md:flex-col gap-1 shrink-0"
+        >
+          <!-- Список из 10 документов рендерится динамически -->
+        </div>
+
+        <!-- Правая область чтения выбранного документа -->
+        <div class="flex-1 overflow-y-auto custom-scroll p-6 sm:p-10 bg-white">
+          <div class="max-w-2xl mx-auto">
+            <!-- Плашка смысла документа -->
+            <div id="viewerDocPurposeBox" class="mb-6 p-3.5 bg-stone-bg border-l-2 border-signal text-xs sm:text-sm text-ink-secondary"></div>
+            <!-- Содержимое документа -->
+            <div id="viewerDocumentBody" class="doc-content"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Нижняя панель окна чтения -->
+      <div class="px-6 py-3.5 bg-stone-bg border-t border-stone-line flex items-center justify-between gap-4 shrink-0">
+        <span class="text-xs text-ink-muted">
+          Сформировано автоматически на основе 8 ответов руководителя
+        </span>
+        <button
+          type="button"
+          onclick="closeDocViewer()"
+          class="px-4 py-2 border border-stone-line bg-white hover:border-ink text-xs font-medium text-ink transition-colors"
+        >
+          Закрыть окно
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       ИНДИКАТОР ОБРАБОТКИ (ПЕРЕД ОТКРЫТИЕМ ПОП-АПА)
+       ========================================================================= -->
+  <div
+    id="conveyorLoader"
+    class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/50 backdrop-blur-xs"
+  >
+    <div class="bg-white border border-stone-line p-6 sm:p-8 max-w-sm w-full shadow-xl text-center">
+      <div class="w-8 h-8 border-2 border-signal border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+      <p class="font-semibold text-sm sm:text-base text-ink">
+        Обработка описания должности...
+      </p>
+      <p class="text-xs text-ink-muted mt-1">
+        Перевод речи в текст и сборка регламентов
+      </p>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       УНИВЕРСАЛЬНОЕ ПРОМЕЖУТОЧНОЕ ПОП-АП ОКНО (ДЕМО-РЕЖИМ -> TELEGRAM)
+       ========================================================================= -->
+  <div
+    id="tgModal"
+    onclick="if(event.target === this) closeConversionModal()"
+    class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/50 backdrop-blur-xs"
+  >
+    <div class="w-full max-w-md bg-white border border-stone-line p-6 sm:p-8 shadow-xl relative">
+      <div class="flex items-start justify-between gap-4 pb-4 border-b border-stone-line">
+        <div>
+          <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-signal/10 text-signal text-xs font-medium mb-2">
+            <span id="tgModalContextTag">Демо-режим</span>
+          </div>
+          <h3 class="font-bold text-base sm:text-lg text-ink leading-snug">
+            Оставьте заявку на подключение системы
+          </h3>
+        </div>
+        <button
+          type="button"
+          onclick="closeConversionModal()"
+          aria-label="Закрыть окно"
+          class="w-8 h-8 border border-stone-line bg-stone-bg hover:border-ink text-ink flex items-center justify-center text-sm leading-none shrink-0 transition-colors"
+        >
+          ✕
+        </button>
+      </div>
+
+      <p class="mt-4 text-sm text-ink-secondary leading-relaxed">
+        Сейчас вы смотрите демонстрационную версию сервиса «Анти-Отчёты» с 5 готовыми примерами должностей.
+      </p>
+      <p class="mt-2.5 text-sm text-ink-secondary leading-relaxed">
+        Чтобы упаковать роли для вашей компании или подключить полный доступ к генерации документов — напишите в Telegram.
+      </p>
+
+      <div class="mt-6 space-y-2.5">
+        <a
+          href="https://t.me/SerjMuzikin"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="btn-signal w-full py-3.5 px-5 text-xs sm:text-sm font-semibold flex items-center justify-center gap-2"
+        >
+          <span>Написать в Telegram (@SerjMuzikin) →</span>
+        </a>
+
+        <button
+          type="button"
+          onclick="closeConversionModal()"
+          class="w-full py-2.5 border border-stone-line bg-stone-bg hover:bg-stone-subtle text-xs font-medium text-ink-secondary transition-colors"
+        >
+          Вернуться к просмотру примеров
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       ЧИСТЫЙ ШОВ ДАННЫХ (ROLES_DATA) + ЛОГИКА ИНТЕРФЕЙСА
+       ========================================================================= -->
+  <script>
+    /**
+     * =========================================================================
+     * КАТАЛОГ 10 ДОКУМЕНТОВ ОПЕРАЦИОННОГО МЕНЕДЖМЕНТА (ПАКЕТ «УПАКОВКА РОЛИ»)
+     * Первые 5 документов открываются на базе описания роли и процессов (п. 1-6).
+     * Вторые 5 документов требуют цифр мотивации, KPI и контроля (п. 7-8).
+     * =========================================================================
+     */
+    const DOC_CATALOG = [
+      {
+        key: 'ukfd',
+        num: '01',
+        title: 'Экспресс-паспорт роли (У-КФД)',
+        tooltip: 'Одностраничная выжимка должности: миссия, главный измеримый результат труда (Продукт роли) и ТОП-3 ключевые обязанности.',
+        requiresMetrics: false
+      },
+      {
+        key: 'kfd',
+        num: '02',
+        title: 'Должностная инструкция (КФД)',
+        tooltip: 'Полный стандарт должности: структура подчинения, функциональные обязанности, взаимодействия и профиль навыков.',
+        requiresMetrics: false
+      },
+      {
+        key: 'dayMap',
+        num: '03',
+        title: 'Карта рабочего дня',
+        tooltip: 'Почасовой и еженедельный распорядок работы сотрудника, чтобы фокусироваться на главном и не тонуть в рутине.',
+        requiresMetrics: false
+      },
+      {
+        key: 'meetings',
+        num: '04',
+        title: 'Регламент и матрица планерок',
+        tooltip: 'Расписание, повестка и формат коротких координационных встреч с руководителем и командой без потери времени.',
+        requiresMetrics: false
+      },
+      {
+        key: 'hiringTz',
+        num: '05',
+        title: 'ТЗ на поиск и найм',
+        tooltip: 'Точный портрет кандидата для рекрутера и публикации вакансии: задачи, необходимые компетенции и стоп-факторы.',
+        requiresMetrics: false
+      },
+      {
+        key: 'interviewGuide',
+        num: '06',
+        title: 'Гайд собеседования',
+        tooltip: 'Чек-лист проверочных вопросов для интервью с кандидатом и критерии оценки его реального опыта и результативности.',
+        requiresMetrics: true
+      },
+      {
+        key: 'onboarding',
+        num: '07',
+        title: 'План ввода в должность (Онбординг)',
+        tooltip: 'Пошаговый маршрут адаптации сотрудника на первые 4 недели с контрольными точками прохождения испытательного срока.',
+        requiresMetrics: true
+      },
+      {
+        key: 'motivation',
+        num: '08',
+        title: 'Финансовая мотивация (СМ)',
+        tooltip: 'Прозрачная формула расчета дохода: базовый оклад, весовые коэффициенты KPI и условия начисления премии за результат.',
+        requiresMetrics: true
+      },
+      {
+        key: 'reporting',
+        num: '09',
+        title: 'KPI + форма отчетности',
+        tooltip: 'Минималистичный стандарт «Анти-Отчёта» по 3–5 ключевым цифрам для ежедневного и еженедельного контроля.',
+        requiresMetrics: true
+      },
+      {
+        key: 'growthScenarios',
+        num: '10',
+        title: '10 сценариев роста результатов',
+        tooltip: 'План из 10 прикладных рычагов на ближайшие 3 месяца для кратного увеличения показателей сотрудника и прибыли бизнеса.',
+        requiresMetrics: true
+      }
+    ];
+
+    /**
+     * =========================================================================
+     * КОНТРАКТ ДАННЫХ ROLES_DATA (ДЛЯ БЫСТРОЙ ЗАМЕНЫ ЗАГЛУШЕК В ANTIGRAVITY)
+     * Содержит 5 показательных бизнес-ролей:
+     * 1-4: Заполнены на 8/8 (все 10 документов разблокированы)
+     * 5: Операционный менеджер — заполнена на 6/8 (открыты 5 из 10 документов, еще 5 ждут ответов №7 и №8)
+     * =========================================================================
+     */
+    const ROLES_DATA = [
+      {
+        id: "rom",
+        title: "Руководитель отдела маркетинга (РОМ)",
+        shortTitle: "Руководитель маркетинга",
+        department: "Маркетинг и лидогенерация",
+        isPartial: false,
+        completedCount: 8,
+        totalCount: 8,
+        voiceRecord: {
+          duration: "03:42",
+          rawTranscript: "«Слушай, мне нужен сильный руководитель маркетинга в прямое подчинение. Сейчас у нас подрядчики по рекламе тянут одеяло каждый на себя, бюджет сливается, а отдел продаж жалуется на нецелевые заявки. Главный результат, который я от него жду — это стабильный поток квалифицированных лидов (SQL) в воронку продаж по адекватной цене не выше 2 500 рублей за квал-лид. Руками он должен каждый день контролировать связки, управлять таргетологом и директологом, проверять конверсии посадочных страниц и раз в неделю сверяться с РОПом по качеству лидов. По деньгам: фикс 120 тысяч плюс бонус за выполнение плана по квал-лидам и удержание стоимости лида в рамках медиаплана. Контролировать хочу по трем цифрам в короткой сводке: расход бюджета, количество квал-лидов и стоимость одного SQL...»"
+        },
+        checklist: [
+          {
+            step: 1,
+            colorTag: "blue",
+            targetDocName: "КФД и У-КФД",
+            questionTitle: "1. Должность, подразделение и подчинение",
+            status: "completed",
+            extractedAnswer: "Руководитель отдела маркетинга (РОМ). Возглавляет подразделение маркетинга и лидогенерации, подчиняется напрямую собственнику / генеральному директору."
+          },
+          {
+            step: 2,
+            colorTag: "blue",
+            targetDocName: "КФД и У-КФД",
+            questionTitle: "2. Миссия должности (Зачем роль компании)",
+            status: "completed",
+            extractedAnswer: "Обеспечить бизнес прогнозируемым и окупаемым потоком целевых клиентов, синхронизировав рекламные каналы с реальными продажами."
+          },
+          {
+            step: 3,
+            colorTag: "blue",
+            targetDocName: "КФД и У-КФД",
+            questionTitle: "3. Продукт роли (Главный измеримый результат)",
+            status: "completed",
+            extractedAnswer: "Выполненный месячный план по квалифицированным лидам (SQL) в CRM-системе при соблюдении плановой стоимости привлечения (CPQL ≤ 2 500 ₽)."
+          },
+          {
+            step: 4,
+            colorTag: "blue",
+            targetDocName: "КФД и У-КФД",
+            questionTitle: "4. Ключевые обязанности и компетенции",
+            status: "completed",
+            extractedAnswer: "Управление медиапланом и подрядчиками (Яндекс.Директ, Telegram, контент), сквозная аналитика воронки, A/B-тесты посадочных страниц, контроль окупаемости (ROMI)."
+          },
+          {
+            step: 5,
+            colorTag: "green",
+            targetDocName: "Карта рабочего дня",
+            questionTitle: "5. Регулярный ритм работы (Карта дня)",
+            status: "completed",
+            extractedAnswer: "Утренний аудит расхода бюджетов и лидов (09:30), дневная координация подрядчиков и креативов, еженедельная сверка качества лидов с отделом продаж."
+          },
+          {
+            step: 6,
+            colorTag: "green",
+            targetDocName: "Карта рабочего дня",
+            questionTitle: "6. Внутренние и внешние взаимодействия",
+            status: "completed",
+            extractedAnswer: "Внутри: связка с РОПом (качество лидов) и собственником (бюджет и стратегия). Снаружи: управление рекламными агентствами, дизайнерами и трафик-менеджерами."
+          },
+          {
+            step: 7,
+            colorTag: "yellow",
+            targetDocName: "Система мотивации (СМ)",
+            questionTitle: "7. Финансовая мотивация (Оклад, KPI, Бонусы)",
+            status: "completed",
+            extractedAnswer: "Оклад 120 000 ₽ + KPI-бонус до 80 000 ₽ (60% веса — выполнение плана по квалифицированным лидам SQL; 40% веса — удержание цены квал-лида в пределах норматива)."
+          },
+          {
+            step: 8,
+            colorTag: "purple",
+            targetDocName: "Система отчетности (СО)",
+            questionTitle: "8. Система контроля и отчетности",
+            status: "completed",
+            extractedAnswer: "Ежедневный чек-ин (3 цифры: расход / лиды / квал-лиды) + еженедельный Анти-Отчёт по воронке и эффективности рекламных связок."
+          }
+        ],
+        documents: {
+          ukfd: `
+            <h2>Усеченный Ключевой Файл Должности (У-КФД)</h2>
+            <p><strong>1. Должность:</strong> Руководитель отдела маркетинга (РОМ) | Прямое подчинение: Собственник бизнеса.</p>
+            <p><strong>2. Ключевая ценность роли (Миссия):</strong> Перевод маркетингового бюджета компании в прогнозируемый поток целевых платежеспособных заявок без слива средств на нецелевой трафик.</p>
+            <p><strong>3. Главный результат (Продукт роли):</strong> Переданные в отдел продаж и подтвержденные квалифицированные лиды (SQL) в объеме 100% месячного плана при стоимости CPQL не выше планового норматива.</p>
+            <h2>ТОП-3 ключевые обязанности</h2>
+            <ul>
+              <li>Формирование и защита медиаплана, ежедневный контроль расхода бюджета и стоимости целевого лида по каждому каналу.</li>
+              <li>Отбор, постановка задач и жесткий контроль внешних подрядчиков и штатных специалистов по трафику и упаковке.</li>
+              <li>Еженедельная синхронизация с Руководителем отдела продаж (РОП) по конверсии из лида в квалификацию и оплату.</li>
+            </ul>
+          `,
+          kfd: `
+            <h2>1. Общая информация о должности</h2>
+            <p><strong>Название должности:</strong> Руководитель отдела маркетинга (РОМ).<br><strong>Подразделение:</strong> Отдел маркетинга и лидогенерации.<br><strong>Непосредственный руководитель:</strong> Генеральный директор / Собственник.</p>
+            <h2>2. Миссия и Продукт роли</h2>
+            <p><strong>Миссия:</strong> Обеспечить коммерческий блок компании стабильным потоком целевых обращений с прозрачной юнит-экономикой каждого канала.</p>
+            <p><strong>Продукт роли (ЦКП):</strong> Зафиксированное в CRM целевое количество квалифицированных лидов (SQL), соответствующих критериям целевого клиента компании, в рамках утвержденного рекламного бюджета.</p>
+            <h2>3. Ключевые обязанности и функции</h2>
+            <ul>
+              <li>Декомпозиция плана выручки компании в воронку маркетинга (показы → клики → лиды → SQL).</li>
+              <li>Управление подрядчиками по трафику, дизайну и копирайтингу: постановка ТЗ, приемка работ, выбраковка неэффективных связок.</li>
+              <li>Доработка посадочных страниц, лид-магнитов и опросников для роста конверсии в заявку.</li>
+              <li>Ведение сквозной аналитики и контроль корректной разметки трафика (UTM, коллтрекинг, CRM).</li>
+            </ul>
+            <h2>4. Профиль компетенций</h2>
+            <p><strong>Hard Skills:</strong> Уверенный расчет юнит-экономики (CPL, CPQL, CAC, ROMI), опыт управления бюджетами от 500 тыс. ₽/мес, знание рекламных кабинетов и CRM.<br><strong>Soft Skills:</strong> Ориентация на твердые цифры вместо процесса, требовательность к подрядчикам, конструктивный диалог с продажами.</p>
+          `,
+          dayMap: `
+            <h2>Регламент и Карта рабочего дня (РОМ)</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Временной блок</th>
+                  <th>Регулярное действие сотрудника</th>
+                  <th>Критерий выполнения</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>09:30 – 10:15</strong><br>Ежедневный мониторинг</td>
+                  <td>Проверка балансов рекламных кабинетов, открутки бюджета за вчерашний день и корректности попадания заявок в CRM.</td>
+                  <td>Ни один канал не остановлен из-за нулевого баланса; все заявки в CRM.</td>
+                </tr>
+                <tr>
+                  <td><strong>10:15 – 12:00</strong><br>Аналитика качества</td>
+                  <td>Прослушивание/проверка 5–10 новых заявок в CRM, отсев спама и корректировка ставок/креативов с подрядчиками.</td>
+                  <td>Нецелевые связки отключены до слива дневного лимита.</td>
+                </tr>
+                <tr>
+                  <td><strong>14:00 – 17:00</strong><br>Проектный блок</td>
+                  <td>Запуск новых посадочных страниц, тестирование офферов, подготовка креативов и работа с контент-воронкой.</td>
+                  <td>Запущено минимум 2 новых теста гипотез в неделю.</td>
+                </tr>
+                <tr>
+                  <td><strong>17:30 – 18:00</strong><br>Фиксация Анти-Отчёта</td>
+                  <td>Заполнение вечерней сводки из 3 ключевых цифр дня и план приоритетов на завтра.</td>
+                  <td>Отчет сдан до 18:00 без напоминаний руководителя.</td>
+                </tr>
+              </tbody>
+            </table>
+          `,
+          motivation: `
+            <h2>Система финансовой мотивации (СМ)</h2>
+            <p>Доход Руководителя отдела маркетинга напрямую привязан к созданию Продукта роли (квалифицированные лиды в рамках целевой стоимости).</p>
+            <table>
+              <thead>
+                <tr>
+                  <th>Часть дохода</th>
+                  <th>Сумма / Вес</th>
+                  <th>Условие начисления (Формула)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Базовый оклад (Fix)</strong></td>
+                  <td>120 000 ₽</td>
+                  <td>Выполнение регулярного регламента работы, ведение аналитики и бесперебойная работа инфраструктуры.</td>
+                </tr>
+                <tr>
+                  <td><strong>KPI №1: Объем квал-лидов (SQL)</strong></td>
+                  <td>До 50 000 ₽ (60%)</td>
+                  <td>Начисляется пропорционально выполнению плана по SQL (при выполнении менее 70% плана бонус не выплачивается).</td>
+                </tr>
+                <tr>
+                  <td><strong>KPI №2: Удержание стоимости CPQL</strong></td>
+                  <td>До 30 000 ₽ (40%)</td>
+                  <td>Выплачивается при удержании средней стоимости квалифицированного лида ≤ 2 500 ₽ в рамках согласованного бюджета.</td>
+                </tr>
+              </tbody>
+            </table>
+          `,
+          reporting: `
+            <h2>Система контроля и отчетности («Анти-Отчёт»)</h2>
+            <p>Вместо многостраничных презентаций контроль строится на 4 твердых показателях, влияющих на выручку компании:</p>
+            <ul>
+              <li><strong>Показатель 1 (Ритм: Ежедневно):</strong> Освоенный рекламный бюджет за сутки (План / Факт, ₽).</li>
+              <li><strong>Показатель 2 (Ритм: Ежедневно):</strong> Общее число обращений (Leads) и число квалифицированных лидов (SQL) в CRM.</li>
+              <li><strong>Показатель 3 (Ритм: Еженедельно):</strong> Фактическая стоимость квалифицированного лида (CPQL, ₽) по каждому каналу.</li>
+              <li><strong>Показатель 4 (Ритм: Еженедельно):</strong> 3 ключевых решения на следующую неделю (какие связки масштабируем, какие отключаем).</li>
+            </ul>
+          `
+        }
+      },
+      {
+        id: "rop",
+        title: "Руководитель отдела продаж (РОП)",
+        shortTitle: "Руководитель продаж",
+        department: "Коммерческий департамент",
+        isPartial: false,
+        completedCount: 8,
+        totalCount: 8,
+        voiceRecord: {
+          duration: "04:15",
+          rawTranscript: "«По РОПу задача простая: у нас менеджеры сидят на входящих, забывают перезванивать, в CRM бардак, сделки висят без задач. Мне нужен человек, который выстроит железную дисциплину в отделе из 6 менеджеров и будет давать план по живым деньгам в кассе каждый месяц. Он не должен продавать вместо менеджеров — его продукт это выполненный план выручки всей командой и конверсия из квал-лида в оплату не ниже 25%. Каждый день: утренняя планерка 15 минут, разбор звонков, контроль пустых сделок в CRM. Мотивация: небольшой фикс плюс процент от общей маржи отдела и бонус за выполнение плана...»"
+        },
+        checklist: [
+          {
+            step: 1,
+            colorTag: "blue",
+            targetDocName: "КФД и У-КФД",
+            questionTitle: "1. Должность, подразделение и подчинение",
+            status: "completed",
+            extractedAnswer: "Руководитель отдела продаж (РОП). Возглавляет отдел продаж (6 менеджеров), подчиняется напрямую собственнику компании."
+          },
+          {
+            step: 2,
+            colorTag: "blue",
+            targetDocName: "КФД и У-КФД",
+            questionTitle: "2. Миссия должности (Зачем роль компании)",
+            status: "completed",
+            extractedAnswer: "Превращать входящий поток квалифицированных заявок в деньги на расчетном счете с максимальной конверсией и соблюдением плановой маржинальности."
+          },
+          {
+            step: 3,
+            colorTag: "blue",
+            targetDocName: "КФД и У-КФД",
+            questionTitle: "3. Продукт роли (Главный измеримый результат)",
+            status: "completed",
+            extractedAnswer: "Выполненный месячный план отдела продаж по поступившей выручке и валовой прибыли при конверсии из SQL в продажу ≥ 25%."
+          },
+          {
+            step: 4,
+            colorTag: "blue",
+            targetDocName: "КФД и У-КФД",
+            questionTitle: "4. Ключевые обязанности и компетенции",
+            status: "completed",
+            extractedAnswer: "Ежедневное управление воронкой в CRM, проведение планерок и разборов звонков, дожим ключевых сделок, обучение и ввод в строй новых менеджеров."
+          },
+          {
+            step: 5,
+            colorTag: "green",
+            targetDocName: "Карта рабочего дня",
+            questionTitle: "5. Регулярный ритм работы (Карта дня)",
+            status: "completed",
+            extractedAnswer: "09:15 — срез CRM по просроченным задачам; 09:30 — боевая планерка отдела; день — аудит звонков и разбор зависших КП; вечер — сверка дневной кассы."
+          },
+          {
+            step: 6,
+            colorTag: "green",
+            targetDocName: "Карта рабочего дня",
+            questionTitle: "6. Внутренние и внешние взаимодействия",
+            status: "completed",
+            extractedAnswer: "Внутри: с РОМом (обратная связь по лидам), с производством/складом (сроки отгрузки), с HR (найм менеджеров). Снаружи: участие в переговорах с VIP-клиентами."
+          },
+          {
+            step: 7,
+            colorTag: "yellow",
+            targetDocName: "Система мотивации (СМ)",
+            questionTitle: "7. Финансовая мотивация (Оклад, KPI, Бонусы)",
+            status: "completed",
+            extractedAnswer: "Оклад 90 000 ₽ + % от валовой маржи отдела + ступенчатый бонус за выполнение плана выручки команды и соблюдение конверсии воронки."
+          },
+          {
+            step: 8,
+            colorTag: "purple",
+            targetDocName: "Система отчетности (СО)",
+            questionTitle: "8. Система контроля и отчетности",
+            status: "completed",
+            extractedAnswer: "Ежедневный дашборд: выручка день/месяц (% к плану), конверсия SQL → Оплата, число сделок без следующего шага (норма = 0)."
+          }
+        ],
+        documents: {
+          ukfd: `
+            <h2>Усеченный Ключевой Файл Должности (У-КФД)</h2>
+            <p><strong>1. Должность:</strong> Руководитель отдела продаж (РОП) | Подчинение: Собственник бизнеса.</p>
+            <p><strong>2. Ключевая ценность роли (Миссия):</strong> Системное выполнение плана поступлений денежных средств силами команды менеджеров без ручного вмешательства собственника.</p>
+            <p><strong>3. Главный результат (Продукт роли):</strong> Деньги на расчетном счете компании в объеме 100% месячного плана продаж и удержание конверсии из квалифицированного лида в оплату не ниже 25%.</p>
+            <h2>ТОП-3 ключевые обязанности</h2>
+            <ul>
+              <li>Ежедневный контроль дисциплины ведения CRM и выполнения дневных нормативов активности каждым менеджером.</li>
+              <li>Регулярный аудит звонков и переписок, тренировка скриптов и дожим крупных сделок на этапе коммерческого предложения.</li>
+              <li>Поддержание полной комплектности штата отдела продаж (адаптация стажеров и замена слабых игроков).</li>
+            </ul>
+          `,
+          kfd: `
+            <h2>1. Общая информация о должности</h2>
+            <p><strong>Название должности:</strong> Руководитель отдела продаж (РОП).<br><strong>Подразделение:</strong> Коммерческий отдел.<br><strong>В подчинении:</strong> Менеджеры по продажам (6 штатных единиц).</p>
+            <h2>2. Миссия и Продукт роли</h2>
+            <p><strong>Продукт роли (ЦКП):</strong> Выполненный план по выручке и маржинальной прибыли отдела за расчетный месяц при нулевом количестве брошенных клиентов в CRM.</p>
+            <h2>3. Ключевые обязанности</h2>
+            <ul>
+              <li>Декомпозиция месячного плана продаж на недели, дни и индивидуальные планы каждого менеджера.</li>
+              <li>Проведение ежедневных 15-минутных утренних планерок с фокусом на кассу сегодняшнего дня.</li>
+              <li>Контроль скорости обработки новых заявок (норматив первого контакта — до 10 минут).</li>
+              <li>Разбор отказных сделок и реактивация накопленной клиентской базы.</li>
+            </ul>
+          `,
+          dayMap: `
+            <h2>Регламент и Карта рабочего дня (РОП)</h2>
+            <ul>
+              <li><strong>09:00 – 09:30:</strong> Ревизия CRM — проверка сделок без задач, просроченных касаний и новых ночных заявок.</li>
+              <li><strong>09:30 – 09:50:</strong> Проведение утренней планерки отдела продаж (план/факт вчера, фокус по оплатам на сегодня).</li>
+              <li><strong>10:00 – 13:00:</strong> Прослушивание звонков по чек-листу качества, индивидуальная калибровка менеджеров.</li>
+              <li><strong>14:00 – 17:00:</strong> Подключение к сложным переговорам по крупным чекам, проверка выставленных КП и договоров.</li>
+              <li><strong>17:30 – 18:00:</strong> Вечерняя сверка поступлений и отправка Анти-Отчёта собственнику.</li>
+            </ul>
+          `,
+          motivation: `
+            <h2>Система финансовой мотивации (СМ — РОП)</h2>
+            <ul>
+              <li><strong>Окладная часть:</strong> 90 000 ₽ (за соблюдение управленческого ритма, планерок и чистоты CRM).</li>
+              <li><strong>Процент от маржи отдела:</strong> Начисляется с фактических поступлений всех менеджеров по прогрессивной шкале выполнения плана.</li>
+              <li><strong>Бонус за конверсию воронки:</strong> Премия при удержании конверсии из квалифицированного лида в оплату ≥ 25%.</li>
+            </ul>
+          `,
+          reporting: `
+            <h2>Система контроля и отчетности («Анти-Отчёт» РОПа)</h2>
+            <ul>
+              <li><strong>Метрика 1:</strong> Поступления денег за день и накопительным итогом с начала месяца (% от плана).</li>
+              <li><strong>Метрика 2:</strong> Сумма подтвержденных оплат на текущую неделю (прогноз кассы).</li>
+              <li><strong>Метрика 3:</strong> Конверсия из SQL в продажу (%) и количество сделок с нарушением регламента CRM.</li>
+            </ul>
+          `
+        }
+      },
+      {
+        id: "fin",
+        title: "Финансист / Экономист",
+        shortTitle: "Финансист / Экономист",
+        department: "Финансовый контур",
+        isPartial: false,
+        completedCount: 8,
+        totalCount: 8,
+        voiceRecord: {
+          duration: "03:19",
+          rawTranscript: "«Мне нужен финансист, который наведет порядок в управленческом учете. Бухгалтерия считает налоги постфактум, а я хочу видеть реальную чистую прибыль и движение денег каждый день, чтобы не попадать в кассовые разрывы. Главный результат — вовремя собранные без ошибок ДДС, ОПиУ и Баланс плюс платежный календарь на 4 недели вперед. Каждый день разносит выписки до 11 утра, раз в неделю ведет комитет по расходам и распределяет деньги по фондам...»"
+        },
+        checklist: [
+          {
+            step: 1,
+            colorTag: "blue",
+            targetDocName: "КФД и У-КФД",
+            questionTitle: "1. Должность, подразделение и подчинение",
+            status: "completed",
+            extractedAnswer: "Финансист / Экономист управленческого учета. Прямое подчинение собственнику компании."
+          },
+          {
+            step: 2,
+            colorTag: "blue",
+            targetDocName: "КФД и У-КФД",
+            questionTitle: "2. Миссия должности (Зачем роль компании)",
+            status: "completed",
+            extractedAnswer: "Обеспечить финансовую прозрачность бизнеса, защитить компанию от кассовых разрывов и нецелевой утечки прибыли."
+          },
+          {
+            step: 3,
+            colorTag: "blue",
+            targetDocName: "КФД и У-КФД",
+            questionTitle: "3. Продукт роли (Главный измеримый результат)",
+            status: "completed",
+            extractedAnswer: "Достоверные и сверенные до копейки отчеты ДДС, ОПиУ и Баланс + актуальный платежный календарь без кассовых разрывов."
+          },
+          {
+            step: 4,
+            colorTag: "blue",
+            targetDocName: "КФД и У-КФД",
+            questionTitle: "4. Ключевые обязанности и компетенции",
+            status: "completed",
+            extractedAnswer: "Ежедневное ведение ДДС, сбор ежемесячного ОПиУ и Баланса, распределение выручки по фондам, контроль заявок на расходование средств."
+          },
+          {
+            step: 5,
+            colorTag: "green",
+            targetDocName: "Карта рабочего дня",
+            questionTitle: "5. Регулярный ритм работы (Карта дня)",
+            status: "completed",
+            extractedAnswer: "До 11:00 — разноска банковских выписок и сверка остатков; день — согласование реестра платежей и расчет юнит-экономики; до 5-го числа — закрытие ОПиУ."
+          },
+          {
+            step: 6,
+            colorTag: "green",
+            targetDocName: "Карта рабочего дня",
+            questionTitle: "6. Внутренние и внешние взаимодействия",
+            status: "completed",
+            extractedAnswer: "Внутри: сбор данных от руководителей отделов и бухгалтерии, защита реестра платежей перед собственником. Снаружи: банки и финансовые сервисы."
+          },
+          {
+            step: 7,
+            colorTag: "yellow",
+            targetDocName: "Система мотивации (СМ)",
+            questionTitle: "7. Финансовая мотивация (Оклад, KPI, Бонусы)",
+            status: "completed",
+            extractedAnswer: "Оклад + квартальный/месячный бонус за 100% своевременность сдачи управленческой отчетности, отсутствие расхождений в сверках и экономию бюджета."
+          },
+          {
+            step: 8,
+            colorTag: "purple",
+            targetDocName: "Система отчетности (СО)",
+            questionTitle: "8. Система контроля и отчетности",
+            status: "completed",
+            extractedAnswer: "Ежедневная утренняя сводка остатков на счетах и план платежей дня + еженедельный отчет по фондам и маржинальности направлений."
+          }
+        ],
+        documents: {
+          ukfd: `
+            <h2>Усеченный Ключевой Файл Должности (У-КФД)</h2>
+            <p><strong>1. Должность:</strong> Финансист / Экономист управленческого учета.</p>
+            <p><strong>2. Ключевая ценность роли (Миссия):</strong> Дать собственнику твердую опору на реальные цифры рентабельности и движения денег в любой день месяца.</p>
+            <p><strong>3. Главный результат (Продукт роли):</strong> Своевременно сформированные и сверенные без расхождений отчеты ДДС (ежедневно до 11:00), ОПиУ и Баланс (до 5-го числа) + сбалансированный платежный календарь.</p>
+          `,
+          kfd: `
+            <h2>Полный Ключевой Файл Должности (КФД — Финансист)</h2>
+            <p>Структурный стандарт должности финансового контура: регламентирует учет доходов и расходов, систему фондирования и защиту от кассовых разрывов.</p>
+            <ul>
+              <li>Ежедневная разноска всех операций по расчетным счетам и кассам по статьям управленческого учета.</li>
+              <li>Формирование реестра платежей и проверка заявок отделов на соответствие утвержденным лимитам фондов.</li>
+              <li>Расчет фактической маржинальности проектов, направлений и отдельных сделок.</li>
+            </ul>
+          `,
+          dayMap: `
+            <h2>Регламент и Карта рабочего дня (Финансист)</h2>
+            <ul>
+              <li><strong>09:30 – 11:00:</strong> Выгрузка банковских выписок, разнесение по статьям ДДС и сверка остатков на счетах.</li>
+              <li><strong>11:00 – 13:00:</strong> Актуализация платежного календаря и проверка входящих заявок на оплату.</li>
+              <li><strong>14:00 – 17:00:</strong> План-фактный анализ бюджетов подразделений, работа с дебиторской задолженностью.</li>
+            </ul>
+          `,
+          motivation: `
+            <h2>Система финансовой мотивации (СМ — Финансист)</h2>
+            <ul>
+              <li><strong>Базовый оклад:</strong> За ежедневное ведение ДДС и платежного календаря без задержек.</li>
+              <li><strong>KPI №1 (Точность и сроки закрытия периода):</strong> Сдача полного ОПиУ и Баланса до 5-го рабочего дня месяца со 100% схождением остатков.</li>
+              <li><strong>KPI №2 (Предотвращение кассовых разрывов и контроль фондов):</strong> Отсутствие внеплановых кассовых разрывов и перерасхода лимитов по статьям.</li>
+            </ul>
+          `,
+          reporting: `
+            <h2>Система контроля и отчетности («Анти-Отчёт» Финансиста)</h2>
+            <ul>
+              <li><strong>Ежедневно до 11:15:</strong> Сводка «Остатки на счетах / Поступления за вчера / Обязательные платежи сегодня».</li>
+              <li><strong>Еженедельно (Пятница):</strong> Исполнение бюджета фондов и прогноз кассы на 4 недели вперед.</li>
+            </ul>
+          `
+        }
+      },
+      {
+        id: "hr",
+        title: "HR-менеджер / Рекрутер",
+        shortTitle: "HR-менеджер / Рекрутер",
+        department: "Подбор и адаптация персонала",
+        isPartial: false,
+        completedCount: 8,
+        totalCount: 8,
+        voiceRecord: {
+          duration: "03:08",
+          rawTranscript: "«По рекрутеру: нам нужно быстро закрывать вакансии в продажи и производство, но не кем попало. Сейчас кандидаты приходят, две недели смотрят и сливаются. Продукт HR-а — это не проведенные собеседования, а вышедший в штат сотрудник, который прошел испытательный срок и выполнил план первого месяца. Каждый день: воронка откликов, телефонные скрининги, зум-интервью по чек-листу и контроль адаптации новичков по регламентам Анти-Отчётов...»"
+        },
+        checklist: [
+          {
+            step: 1,
+            colorTag: "blue",
+            targetDocName: "КФД и У-КФД",
+            questionTitle: "1. Должность, подразделение и подчинение",
+            status: "completed",
+            extractedAnswer: "HR-менеджер / Рекрутер. Подчиняется собственнику / операционному директору, работает по заявкам руководителей отделов."
+          },
+          {
+            step: 2,
+            colorTag: "blue",
+            targetDocName: "КФД и У-КФД",
+            questionTitle: "2. Миссия должности (Зачем роль компании)",
+            status: "completed",
+            extractedAnswer: "Укомплектовать ключевые подразделения результативными сотрудниками и обеспечить их быстрый ввод в должность без потерь на испытательном сроке."
+          },
+          {
+            step: 3,
+            colorTag: "blue",
+            targetDocName: "КФД и У-КФД",
+            questionTitle: "3. Продукт роли (Главный измеримый результат)",
+            status: "completed",
+            extractedAnswer: "Адаптированный сотрудник, успешно прошедший испытательный срок и вышедший на плановые показатели своей должности."
+          },
+          {
+            step: 4,
+            colorTag: "blue",
+            targetDocName: "КФД и У-КФД",
+            questionTitle: "4. Ключевые обязанности и компетенции",
+            status: "completed",
+            extractedAnswer: "Снятие ТЗ на найм, публикация вакансий и холодный поиск, проведение первичных скринингов и глубинных интервью, сопровождение онбординга."
+          },
+          {
+            step: 5,
+            colorTag: "green",
+            targetDocName: "Карта рабочего дня",
+            questionTitle: "5. Регулярный ритм работы (Карта дня)",
+            status: "completed",
+            extractedAnswer: "Утро — разбор откликов и холодный поиск (не менее 30 контактов); день — проведение 4–6 видео-интервью; вечер — чек-ин с новичками на адаптации."
+          },
+          {
+            step: 6,
+            colorTag: "green",
+            targetDocName: "Карта рабочего дня",
+            questionTitle: "6. Внутренние и внешние взаимодействия",
+            status: "completed",
+            extractedAnswer: "Внутри: с руководителями отделов (финальные интервью и план ввода в должность). Снаружи: кандидаты, работные сайты (HH.ru), профильные Telegram-каналы."
+          },
+          {
+            step: 7,
+            colorTag: "yellow",
+            targetDocName: "Система мотивации (СМ)",
+            questionTitle: "7. Финансовая мотивация (Оклад, KPI, Бонусы)",
+            status: "completed",
+            extractedAnswer: "Оклад + фиксированный бонус за каждого закрытого кандидата (50% при выходе и прохождении первой недели, 50% после успешного закрытия испытательного срока)."
+          },
+          {
+            step: 8,
+            colorTag: "purple",
+            targetDocName: "Система отчетности (СО)",
+            questionTitle: "8. Система контроля и отчетности",
+            status: "completed",
+            extractedAnswer: "Ежедневная воронка найма по каждой открытой вакансии: Отклики → Скрининги → Собеседования → Выведенные стажеры."
+          }
+        ],
+        documents: {
+          ukfd: `
+            <h2>Усеченный Ключевой Файл Должности (У-КФД)</h2>
+            <p><strong>1. Должность:</strong> HR-менеджер / Рекрутер.</p>
+            <p><strong>2. Ключевая ценность роли (Миссия):</strong> Своевременное закрытие кадровой потребности бизнеса сильными кандидатами с защитой руководителей от текучки на старте.</p>
+            <p><strong>3. Главный результат (Продукт роли):</strong> Сотрудник, выведенный в штат в установленный срок и успешно сдавший аттестацию по итогам испытательного периода.</p>
+          `,
+          kfd: `
+            <h2>Полный Ключевой Файл Должности (КФД — HR-менеджер)</h2>
+            <ul>
+              <li>Формирование профиля вакансии на базе КФД и Карты рабочего дня соответствующей роли.</li>
+              <li>Активный сорсинг кандидатов, проведение двухэтапного отбора (скрининг + оценка Hard/Soft компетенций).</li>
+              <li>Организация онбординга по стандарту «Анти-Отчёты» и контроль адаптации в первые 4 недели работы.</li>
+            </ul>
+          `,
+          dayMap: `
+            <h2>Регламент и Карта рабочего дня (HR-менеджер)</h2>
+            <ul>
+              <li><strong>09:30 – 11:30:</strong> Разбор новых откликов, прозвон базы резюме и назначение интервью на день.</li>
+              <li><strong>12:00 – 16:00:</strong> Проведение структурированных собеседований и организация встреч финальных кандидатов с руководителями.</li>
+              <li><strong>16:30 – 18:00:</strong> Контроль прохождения чек-листов онбординга стажерами и заполнение воронки подбора.</li>
+            </ul>
+          `,
+          motivation: `
+            <h2>Система финансовой мотивации (СМ — HR-менеджер)</h2>
+            <ul>
+              <li><strong>Базовый оклад:</strong> За выполнение ежедневных нормативов воронки рекрутинга и сопровождение стажеров.</li>
+              <li><strong>Бонус за вывод кандидата (Часть 1 — 50%):</strong> Начисляется после первых 5 отработанных дней стажера.</li>
+              <li><strong>Бонус за приживаемость (Часть 2 — 50%):</strong> Начисляется после успешного прохождения сотрудником испытательного срока.</li>
+            </ul>
+          `,
+          reporting: `
+            <h2>Система контроля и отчетности («Анти-Отчёт» HR-менеджера)</h2>
+            <ul>
+              <li><strong>Ежедневно:</strong> Число проведенных телефонных скринингов, глубинных интервью и назначенных финалов с руководителями.</li>
+              <li><strong>Еженедельно:</strong> Статус закрытия вакансий и прогресс адаптации всех сотрудников на испытательном сроке.</li>
+            </ul>
+          `
+        }
+      },
+      {
+        id: "ops",
+        title: "Операционный менеджер",
+        shortTitle: "Операционный менеджер",
+        department: "Операционный контур (Частичное заполнение 6/8)",
+        isPartial: true,
+        completedCount: 6,
+        totalCount: 8,
+        voiceRecord: {
+          duration: "02:14",
+          rawTranscript: "«Так, давай упакуем операционного менеджера. Мне нужен человек-оркестр, который снимет с меня текучку по координации проектов и контролю дедлайнов между продажами и исполнением обязательств. Его главный результат — все клиентские проекты сдаются точно в срок по договору без факапов и дергания меня по мелочам. Каждый день он проводит короткую синхронизацию с проектными командами, проверяет статусы в трекере задач, разруливает затыки между отделами и следит за соблюдением регламентов. По окладу я думал в районе 100 тысяч, а вот как именно считать ему бонусы и какую отчетность с него спрашивать каждый день — пока до конца не сформулировал...»"
+        },
+        checklist: [
+          {
+            step: 1,
+            colorTag: "blue",
+            targetDocName: "КФД и У-КФД",
+            questionTitle: "1. Должность, подразделение и подчинение",
+            status: "completed",
+            extractedAnswer: "Операционный менеджер (Координатор операционных процессов). Подчиняется непосредственно собственнику бизнеса."
+          },
+          {
+            step: 2,
+            colorTag: "blue",
+            targetDocName: "КФД и У-КФД",
+            questionTitle: "2. Миссия должности (Зачем роль компании)",
+            status: "completed",
+            extractedAnswer: "Разгрузить собственника от ежедневного ручного контроля процессов и обеспечить бесшовную стыковку между продажами и производством."
+          },
+          {
+            step: 3,
+            colorTag: "blue",
+            targetDocName: "КФД и У-КФД",
+            questionTitle: "3. Продукт роли (Главный измеримый результат)",
+            status: "completed",
+            extractedAnswer: "100% текущих проектов и задач компании, выполненных в установленный договором срок и в соответствии с внутренними регламентами качества."
+          },
+          {
+            step: 4,
+            colorTag: "blue",
+            targetDocName: "КФД и У-КФД",
+            questionTitle: "4. Ключевые обязанности и компетенции",
+            status: "completed",
+            extractedAnswer: "Контроль сроков и этапов исполнения заказов в таск-трекере, координация смежных отделов, выявление узких мест и контроль соблюдения регламентов."
+          },
+          {
+            step: 5,
+            colorTag: "green",
+            targetDocName: "Карта рабочего дня",
+            questionTitle: "5. Регулярный ритм работы (Карта дня)",
+            status: "completed",
+            extractedAnswer: "Утренняя ревизия дедлайнов дня по всем проектам, короткие координационные созвоны с исполнителями, дневной разбор блокеров и проверка сдачи этапов."
+          },
+          {
+            step: 6,
+            colorTag: "green",
+            targetDocName: "Карта рабочего дня",
+            questionTitle: "6. Внутренние и внешние взаимодействия",
+            status: "completed",
+            extractedAnswer: "Внутри: связующее звено между отделом продаж, производственной командой и собственником. Снаружи: подрядчики и сервисные службы."
+          },
+          {
+            step: 7,
+            colorTag: "yellow",
+            targetDocName: "Система мотивации (СМ)",
+            questionTitle: "7. Финансовая мотивация (Оклад, KPI, Бонусы)",
+            status: "needs_clarification",
+            extractedAnswer: null,
+            clarificationPrompt: "В голосовом рассказе вы упомянули только базовый оклад (~100 000 ₽), но не указали критерии начисления бонусной части. Уточните: к каким 2–3 измеримым показателям привязать премию операционного менеджера (например: % проектов, сданных без просрочки дедлайна, индекс соблюдения регламентов командой, NPS клиентов)?",
+            sampleClarification: "Оклад 100 000 ₽ + премия 40 000 ₽: 50% бонуса за сдачу не менее 95% клиентских этапов точно в срок по договору, 50% бонуса за 100% заполняемость Анти-Отчётов сотрудниками отделов."
+          },
+          {
+            step: 8,
+            colorTag: "purple",
+            targetDocName: "Система отчетности (СО)",
+            questionTitle: "8. Система контроля и отчетности",
+            status: "needs_clarification",
+            extractedAnswer: null,
+            clarificationPrompt: "Не указан формат и ритм контроля самой роли. Уточните: как часто (раз в день / раз в неделю) и какие 3–5 конкретных цифр операционный менеджер должен класть вам на стол, чтобы вы видели пульс компании без планерки?",
+            sampleClarification: "Ежедневно до 18:30 короткая сводка в Telegram: 1) Сколько проектов в работе и сколько под риском срыва срока; 2) Какие узкие места решены за день; 3) Дисциплина сдачи отчетов по отделам."
+          }
+        ],
+        documents: {
+          ukfd: `
+            <h2>Усеченный Ключевой Файл Должности (У-КФД)</h2>
+            <p><strong>1. Должность:</strong> Операционный менеджер | Подчинение: Собственник бизнеса.</p>
+            <p><strong>2. Ключевая ценность роли (Миссия):</strong> Освободить время собственника от операционной текучки и ручного сведения отделов между собой.</p>
+            <p><strong>3. Главный результат (Продукт роли):</strong> Ритмичное выполнение обязательств компании перед клиентами со 100% соблюдением дедлайнов и внутренних стандартов.</p>
+            <h2>ТОП-3 ключевые обязанности</h2>
+            <ul>
+              <li>Ежедневный трекинг сроков и контрольных точек по всем активным проектам и задачам в системе управления.</li>
+              <li>Оперативное устранение заторов на стыке «Продажи → Производство / Исполнение».</li>
+              <li>Контроль соблюдения сотрудниками утвержденных регламентов и Карт рабочего дня.</li>
+            </ul>
+          `,
+          kfd: `
+            <h2>Полный Ключевой Файл Должности (КФД — Операционный менеджер)</h2>
+            <p>Документ сформирован на основании заполненных базовых блоков №1–4 чек-листа роли.</p>
+            <ul>
+              <li>Приемка переданных из отдела продаж проектов и проверка полноты входных данных для запуска в работу.</li>
+              <li>Распределение задач по календарному плану, контроль промежуточных контрольных точек (milestones).</li>
+              <li>Аудит исполнения регламентов сотрудниками и эскалация системных отклонений собственнику с готовыми вариантами решения.</li>
+            </ul>
+          `,
+          dayMap: `
+            <h2>Регламент и Карта рабочего дня (Операционный менеджер)</h2>
+            <p>Документ сформирован на основании заполненных блоков №5–6 чек-листа роли.</p>
+            <ul>
+              <li><strong>09:15 – 10:00:</strong> Проверка дашборда текущих проектов и выявление задач с истекающим сроком сегодня.</li>
+              <li><strong>10:00 – 11:00:</strong> Короткие синхронизации с руководителями направлений по устранению блокеров.</li>
+              <li><strong>11:00 – 17:00:</strong> Контроль передачи этапов между отделами, проверка качества заполнения проектных карточек.</li>
+              <li><strong>17:00 – 18:00:</strong> Подготовка сводки отклонений и актуализация планов на следующий рабочий день.</li>
+            </ul>
+          `,
+          motivation: null, // Заблокировано до ответа на вопрос №7
+          reporting: null   // Заблокировано до ответа на вопрос №8
+        }
+      }
+    ];
+
+    // Текущее состояние интерфейса
+    let currentState = {
+      mode: 'role', // 'role' (просмотр одной из 5 ролей) | 'add' (режим «+ Добавить роль»)
+      selectedRoleId: 'rom',
+      isTranscriptOpen: false,
+      isAudioPlaying: false,
+      audioInterval: null,
+      audioSeconds: 0,
+      viewerActiveDocKey: 'ukfd'
+    };
+
+    // Спокойная цветовая маркировка для 4 типов документов
+    const COLOR_MAP = {
+      blue: {
+        dot: 'bg-blue-600',
+        badgeBg: 'bg-tag-blueBg',
+        badgeText: 'text-tag-blue',
+        badgeBorder: 'border-tag-blueBorder',
+        label: 'Инструкция (КФД)'
+      },
+      green: {
+        dot: 'bg-emerald-600',
+        badgeBg: 'bg-tag-greenBg',
+        badgeText: 'text-tag-green',
+        badgeBorder: 'border-tag-greenBorder',
+        label: 'Карта дня'
+      },
+      yellow: {
+        dot: 'bg-amber-500',
+        badgeBg: 'bg-tag-yellowBg',
+        badgeText: 'text-tag-yellow',
+        badgeBorder: 'border-tag-yellowBorder',
+        label: 'Мотивация'
+      },
+      purple: {
+        dot: 'bg-purple-600',
+        badgeBg: 'bg-tag-purpleBg',
+        badgeText: 'text-tag-purple',
+        badgeBorder: 'border-tag-purpleBorder',
+        label: 'Отчетность'
+      }
+    };
+
+    /**
+     * Инициализация приложения при загрузке
+     */
+    function initApp() {
+      renderRolesSidebar();
+      selectRole('rom');
+    }
+
+    /**
+     * Рендер левой колонки со списком из 5 демо-ролей
+     */
+    function renderRolesSidebar() {
+      const container = document.getElementById('rolesListContainer');
+      const addBtn = document.getElementById('btnAddRole');
+
+      if (currentState.mode === 'add') {
+        addBtn.classList.add('ring-2', 'ring-ink', 'ring-offset-1');
+      } else {
+        addBtn.classList.remove('ring-2', 'ring-ink', 'ring-offset-1');
+      }
+
+      container.innerHTML = ROLES_DATA.map((role) => {
+        const isActive = currentState.mode === 'role' && currentState.selectedRoleId === role.id;
+        const statusBadge = role.isPartial
+          ? `<span class="text-[11px] font-medium px-2 py-0.5 bg-amber-100 text-amber-800 shrink-0">
+               5/10 док.
+             </span>`
+          : `<span class="text-[11px] font-medium px-2 py-0.5 bg-emerald-50 text-emerald-700 shrink-0">
+               10/10 док.
+             </span>`;
+
+        return `
+          <button
+            type="button"
+            onclick="selectRole('${role.id}')"
+            class="role-nav-item w-full text-left p-3.5 border border-transparent flex flex-col gap-1.5 ${isActive ? 'active' : ''}"
+          >
+            <div class="flex items-start justify-between gap-2 w-full">
+              <div class="font-semibold text-sm leading-snug text-ink">
+                ${role.shortTitle}
+              </div>
+              ${statusBadge}
+            </div>
+            <div class="text-xs text-ink-muted truncate">
+              ${role.department}
+            </div>
+          </button>
+        `;
+      }).join('');
+    }
+
+    /**
+     * Выбор одной из 5 предзаполненных ролей
+     */
+    function selectRole(roleId) {
+      stopSimulatedAudio();
+      currentState.mode = 'role';
+      currentState.selectedRoleId = roleId;
+      currentState.isTranscriptOpen = false;
+
+      renderRolesSidebar();
+      renderCenterRoleWorkspace();
+      renderRightDocsPanel();
+
+      if (window.innerWidth < 1024) {
+        switchMobileTab('center');
+      }
+    }
+
+    /**
+     * Переключение в режим «+ Добавить свою роль»
+     */
+    function activateAddRoleMode() {
+      stopSimulatedAudio();
+      stopVoiceRecognition();
+      currentState.mode = 'add';
+
+      renderRolesSidebar();
+      renderCenterAddRoleWorkspace();
+      renderRightDocsPanel();
+
+      if (window.innerWidth < 1024) {
+        switchMobileTab('center');
+      }
+    }
+
+    /**
+     * Рендер центральной рабочей зоны для выбранной демо-роли
+     */
+    function renderCenterRoleWorkspace() {
+      const role = ROLES_DATA.find(r => r.id === currentState.selectedRoleId);
+      const container = document.getElementById('centerWorkspaceContent');
+
+      const statusBanner = role.isPartial
+        ? `<div class="p-3.5 bg-amber-50 border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+             <div class="text-xs sm:text-sm text-amber-900">
+               <strong>Заполнено 6 из 8 ответов:</strong> 5 базовых документов справа уже открыты. Ответьте на 2 вопроса внизу, чтобы разблокировать остальные 5 документов.
+             </div>
+             <a href="#check-step-7" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium shrink-0 self-start sm:self-center transition-colors">
+               К вопросам №7–8 ↓
+             </a>
+           </div>`
+        : '';
+
+      const checklistHtml = role.checklist.map(item => {
+        if (item.status === 'completed') {
+          return `
+            <article id="check-step-${item.step}" class="bg-white border border-stone-line p-4 sm:p-5 space-y-1.5">
+              <div class="flex items-center justify-between gap-2">
+                <h4 class="font-semibold text-sm text-ink">
+                  ${item.questionTitle}
+                </h4>
+                <span class="text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 shrink-0">
+                  ✓ Заполнено
+                </span>
+              </div>
+
+              <p class="text-sm text-ink-secondary leading-relaxed">
+                ${item.extractedAnswer}
+              </p>
+            </article>
+          `;
+        } else {
+          // Желтое мини-окошко на доответ (для 5-й роли «Операционный менеджер»)
+          return `
+            <article id="check-step-${item.step}" class="bg-amber-50/70 border border-amber-400 p-4 sm:p-5 space-y-3.5">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <span class="w-2 h-2 bg-amber-500"></span>
+                  <h4 class="font-semibold text-sm text-ink">
+                    ${item.questionTitle}
+                  </h4>
+                </div>
+                <span class="text-xs font-medium text-amber-900 bg-amber-200/70 px-2 py-0.5">
+                  Нужно уточнить
+                </span>
+              </div>
+
+              <!-- Наводящий вопрос от системы -->
+              <p class="text-xs sm:text-sm text-amber-950 leading-relaxed bg-white/80 p-3 border-l-2 border-amber-500">
+                ${item.clarificationPrompt}
+              </p>
+
+              <!-- Поле для доответа голосом или текстом -->
+              <div class="space-y-2.5">
+                <textarea
+                  id="clarifyInput-${item.step}"
+                  rows="2"
+                  placeholder="Напишите ответ или нажмите «Наговорить»..."
+                  class="w-full p-3 bg-white border border-stone-line focus:border-ink focus:outline-none text-sm text-ink"
+                ></textarea>
+
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      id="btnMiniMic-${item.step}"
+                      onclick="startMiniVoiceInput(${item.step})"
+                      class="px-3 py-1.5 bg-white border border-stone-line hover:border-ink text-xs font-medium text-ink inline-flex items-center gap-1.5 transition-colors"
+                    >
+                      <span>🎤 Наговорить</span>
+                    </button>
+                    <button
+                      type="button"
+                      onclick="fillSampleClarification(${item.step})"
+                      class="px-3 py-1.5 bg-white border border-stone-line hover:border-ink text-xs text-ink-secondary hover:text-ink transition-colors"
+                    >
+                      Вставить пример
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onclick="triggerGenerationWithFeedback('Дополнение роли «${role.title}» (Пункт №${item.step})')"
+                    class="btn-signal px-4 py-1.5 text-xs font-semibold"
+                  >
+                    Сохранить ответ
+                  </button>
+                </div>
+              </div>
+            </article>
+          `;
+        }
+      }).join('');
+
+      container.innerHTML = `
+        <!-- Заголовок выбранной должности -->
+        <div class="space-y-3">
+          <div class="flex flex-wrap items-baseline justify-between gap-2">
+            <div>
+              <h1 class="font-bold text-lg sm:text-xl text-ink">
+                ${role.title}
+              </h1>
+              <p class="text-xs text-ink-muted mt-0.5">
+                ${role.department}
+              </p>
+            </div>
+            <span class="text-xs font-medium text-ink-secondary">
+              Ответов: ${role.completedCount} из ${role.totalCount}
+            </span>
+          </div>
+
+          ${statusBanner}
+        </div>
+
+        <!-- Компактный блок исходного голосового рассказа -->
+        <div class="bg-white border border-stone-line p-4 sm:p-5 space-y-3">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-xs font-semibold text-ink">
+              Исходный голосовой рассказ руководителя
+            </span>
+            <button
+              type="button"
+              onclick="toggleTranscriptBox()"
+              id="btnToggleTranscript"
+              class="text-xs font-medium text-signal hover:underline"
+            >
+              Показать текст рассказа ↓
+            </button>
+          </div>
+
+          <!-- Аудио-полоска -->
+          <div class="flex items-center gap-3 bg-stone-bg px-3.5 py-2.5 border border-stone-line">
+            <button
+              type="button"
+              id="btnAudioPlay"
+              onclick="toggleSimulatedAudio('${role.voiceRecord.duration}')"
+              class="w-8 h-8 bg-ink hover:bg-signal text-white flex items-center justify-center shrink-0 text-xs transition-colors"
+            >
+              ▶
+            </button>
+            <div class="flex-1 min-w-0">
+              <div class="w-full h-1.5 bg-stone-line overflow-hidden">
+                <div id="audioProgressBar" class="h-full bg-signal w-0 transition-all duration-300"></div>
+              </div>
+            </div>
+            <span id="audioTimerDisplay" class="font-mono text-xs text-ink-secondary shrink-0">
+              00:00 / ${role.voiceRecord.duration}
+            </span>
+          </div>
+
+          <!-- Текст расшифровки (по клику) -->
+          <div id="rawTranscriptBox" class="hidden p-3.5 bg-stone-bg border-l-2 border-ink text-xs sm:text-sm text-ink-secondary leading-relaxed italic">
+            ${role.voiceRecord.rawTranscript}
+          </div>
+        </div>
+
+        <!-- Список из 8 распознанных ответов -->
+        <div class="space-y-2.5">
+          <div class="flex items-center justify-between pt-1">
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-ink-muted">
+              Что система выделила из рассказа (8 пунктов)
+            </h2>
+          </div>
+          ${checklistHtml}
+        </div>
+      `;
+    }
+
+    /**
+     * Рендер центральной зоны в режиме «+ Добавить свою должность»
+     */
+    function renderCenterAddRoleWorkspace() {
+      const container = document.getElementById('centerWorkspaceContent');
+
+      container.innerHTML = `
+        <div class="bg-white border border-stone-line p-5 sm:p-8 space-y-6">
+          
+          <div>
+            <span class="inline-block text-xs font-medium text-signal bg-signal/10 px-2.5 py-1 mb-2">
+              Новая должность · Без анкет и ТЗ
+            </span>
+            <h1 class="font-bold text-lg sm:text-xl text-ink">
+              Опишите должность своими словами
+            </h1>
+            <p class="mt-1.5 text-sm text-ink-secondary leading-relaxed">
+              Нажмите на кнопку записи голоса (или вставьте текст) и коротко расскажите о роли. Система сама разложит ваш рассказ по 8 пунктам и соберет пакет из 10 документов.
+            </p>
+          </div>
+
+          <!-- Короткая памятка из 4 пунктов -->
+          <div class="p-4 bg-stone-bg border border-stone-line space-y-2.5">
+            <div class="text-xs font-semibold text-ink">
+              О чем можно упомянуть в рассказе:
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-ink-secondary">
+              <div class="flex items-start gap-2">
+                <span class="w-1.5 h-1.5 bg-ink shrink-0 mt-1.5"></span>
+                <span><strong>1. Главный результат:</strong> кто это и за какой итог работы вы платите.</span>
+              </div>
+              <div class="flex items-start gap-2">
+                <span class="w-1.5 h-1.5 bg-ink shrink-0 mt-1.5"></span>
+                <span><strong>2. Задачи дня:</strong> что сотрудник делает руками каждый день.</span>
+              </div>
+              <div class="flex items-start gap-2">
+                <span class="w-1.5 h-1.5 bg-ink shrink-0 mt-1.5"></span>
+                <span><strong>3. Деньги и мотивация:</strong> оклад, бонусы и показатели премии.</span>
+              </div>
+              <div class="flex items-start gap-2">
+                <span class="w-1.5 h-1.5 bg-ink shrink-0 mt-1.5"></span>
+                <span><strong>4. Контроль:</strong> по каким 3–5 цифрам проверять его работу.</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Поле записи голоса и текста -->
+          <div class="space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  id="btnMainVoiceRecord"
+                  onclick="toggleMainVoiceRecording()"
+                  class="px-4 py-2.5 bg-ink hover:bg-signal text-white text-xs font-semibold inline-flex items-center gap-2 transition-colors"
+                >
+                  <span id="micDotIndicator" class="w-2 h-2 bg-signal"></span>
+                  <span id="micBtnLabel">🎤 Записать голосом</span>
+                </button>
+
+                <button
+                  type="button"
+                  onclick="insertSampleNewRoleMonologue()"
+                  class="px-3.5 py-2.5 border border-stone-line bg-stone-bg hover:border-ink text-xs font-medium text-ink transition-colors"
+                >
+                  Вставить готовый пример
+                </button>
+              </div>
+
+              <span id="voiceStatusNotice" class="text-xs text-ink-muted">
+                Голосовой ввод работает в браузере
+              </span>
+            </div>
+
+            <textarea
+              id="newRoleTranscriptInput"
+              rows="6"
+              placeholder="Нажмите «Записать голосом» и говорите, либо нажмите «Вставить готовый пример»..."
+              class="w-full p-4 bg-stone-bg/50 border border-stone-line focus:bg-white focus:border-ink focus:outline-none text-sm text-ink leading-relaxed"
+            ></textarea>
+          </div>
+
+          <!-- Кнопка формирования документов -->
+          <div class="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <span class="text-xs text-ink-muted">
+              Готовые документы появятся в правой колонке
+            </span>
+
+            <button
+              type="button"
+              onclick="handleNewRoleSubmit()"
+              class="btn-signal px-6 py-3.5 text-xs sm:text-sm font-semibold shrink-0"
+            >
+              Сформировать документы →
+            </button>
+          </div>
+
+        </div>
+      `;
+    }
+
+    /**
+     * Генератор текста документа (берет существующий текст из ROLES_DATA или собирает чистый управленческий шаблон для новых документов 04..10)
+     */
+    function getRoleDocumentHtml(role, docKey) {
+      if (role.documents && role.documents[docKey]) {
+        return role.documents[docKey];
+      }
+
+      const c = role.checklist;
+      const ans = (idx) => (c[idx - 1] && c[idx - 1].extractedAnswer) ? c[idx - 1].extractedAnswer : 'Формируется после ответа руководителя';
+
+      const templates = {
+        meetings: `
+          <h2>Регламент и матрица планерок (${role.shortTitle})</h2>
+          <p><strong>Назначение стандарта:</strong> Исключить затяжные совещания без результата и перевести коммуникацию с ролью «${role.title}» в четкий ритм коротких сверок.</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Тип встречи и ритм</th>
+                <th>Длительность</th>
+                <th>Повестка и итоговый артефакт встречи</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Ежедневная оперативная сверка</strong><br>Пн–Пт (утро)</td>
+                <td>10–15 минут</td>
+                <td>Сверка приоритетов из Карты дня: ${ans(5)} Выявление блокеров на сегодня.</td>
+              </tr>
+              <tr>
+                <td><strong>Еженедельная планерка результатов</strong><br>Понедельник / Пятница</td>
+                <td>30 минут</td>
+                <td>План/факт по главному продукту роли (${ans(3)}). Принятие решений по отклонениям.</td>
+              </tr>
+              <tr>
+                <td><strong>Ежемесячное ревью и планирование</strong><br>1-я неделя месяца</td>
+                <td>45 минут</td>
+                <td>Подведение итогов месяца, расчет бонусной части KPI и утверждение плана роста на следующий месяц.</td>
+              </tr>
+            </tbody>
+          </table>
+        `,
+        hiringTz: `
+          <h2>Техническое задание на поиск и найм (${role.shortTitle})</h2>
+          <p><strong>1. Кого ищем и в какой контур:</strong> ${ans(1)}</p>
+          <p><strong>2. Зачем открыта вакансия (Миссия):</strong> ${ans(2)}</p>
+          <h2>Главный результат, который должен давать кандидат</h2>
+          <p>${ans(3)}</p>
+          <h2>Ключевые задачи и требования к опыту</h2>
+          <ul>
+            <li><strong>Функциональный контур:</strong> ${ans(4)}</li>
+            <li><strong>Регулярный рабочий ритм:</strong> ${ans(5)}</li>
+            <li><strong>Контур коммуникаций:</strong> ${ans(6)}</li>
+            <li><strong>Стоп-факторы при отборе:</strong> Фокус на процессе вместо твердых цифр результата, отсутствие подтвержденных кейсов на аналогичной должности, неспособность работать в рамках прозрачной отчетности.</li>
+          </ul>
+        `,
+        interviewGuide: `
+          <h2>Гайд собеседования и чек-лист оценки кандидата (${role.shortTitle})</h2>
+          <p>Структурированный сценарий интервью для проверки реальных навыков кандидата перед выводом на испытательный срок.</p>
+          <ul>
+            <li><strong>Блок 1. Проверка понимания Продукта роли:</strong> «Как вы формулируете главный измеримый результат работы на позиции "${role.shortTitle}" и за что именно компания должна платить вам бонус?» (Сверка с эталоном: ${ans(3)}).</li>
+            <li><strong>Блок 2. Кейс-проверка ключевых обязанностей:</strong> Практический разбор рабочего сценария по блоку: ${ans(4)}</li>
+            <li><strong>Блок 3. Готовность к системному ритму и контролю:</strong> Проверка отношения кандидата к ежедневной Карте дня и прозрачной сдаче цифр: ${ans(8)}</li>
+            <li><strong>Блок 4. Финансовые ожидания:</strong> Сверка ожиданий кандидата с утвержденной формулой мотивации: ${ans(7)}</li>
+          </ul>
+        `,
+        onboarding: `
+          <h2>План ввода в должность и онбординга (${role.shortTitle})</h2>
+          <p>Пошаговый маршрут безопасного ввода сотрудника в рабочий ритм компании на первые 4 недели (испытательный срок).</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Этап адаптации</th>
+                <th>Задачи сотрудника и наставника</th>
+                <th>Критерий успешного прохождения</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Дни 1–3</strong><br>Погружение в правила</td>
+                <td>Изучение У-КФД, Полного КФД и Карты рабочего дня. Настройка доступов и знакомство со смежными отделами (${ans(6)}).</td>
+                <td>Сотрудник сдал устный зачет по своему Продукту роли и регламенту дня.</td>
+              </tr>
+              <tr>
+                <td><strong>Недели 1–2</strong><br>Первые рабочие циклы</td>
+                <td>Включение в регулярный ритм (${ans(5)}) и ежедневная сдача первого Анти-Отчёта руководителю.</td>
+                <td>100% соблюдение Карты дня и своевременная сдача отчетности без напоминаний.</td>
+              </tr>
+              <tr>
+                <td><strong>Недели 3–4</strong><br>Выход на плановые KPI</td>
+                <td>Самостоятельное выполнение ключевых функций (${ans(4)}) и выход на целевые метрики должности.</td>
+                <td>Достижение плановых показателей испытательного срока и переход на полную мотивацию.</td>
+              </tr>
+            </tbody>
+          </table>
+        `,
+        growthScenarios: `
+          <h2>10 сценариев роста результатов на 3 месяца (${role.shortTitle})</h2>
+          <p>Прикладная дорожная карта действий, за счет которых сотрудник увеличивает объем и качество Продукта роли (${ans(3)}):</p>
+          <ul>
+            <li><strong>Сценарий 1. Аудит потерь времени:</strong> Устранение рутинных операций, не влияющих напрямую на главные KPI должности.</li>
+            <li><strong>Сценарий 2. Стандартизация повторяющихся действий:</strong> Перевод регулярных задач из Карты дня в быстрые чек-листы.</li>
+            <li><strong>Сценарий 3. Ускорение стыковки со смежными отделами:</strong> Устранение затыков в контуре взаимодействий (${ans(6)}).</li>
+            <li><strong>Сценарий 4. Повышение конверсии ключевого этапа:</strong> Еженедельный разбор узких мест с руководителем по цифрам Анти-Отчёта.</li>
+            <li><strong>Сценарий 5. Автоматизация ручного сбора данных:</strong> Сокращение времени на подготовку сводок до 5–10 минут в день.</li>
+            <li><strong>Сценарий 6. Внедрение опережающих показателей:</strong> Контроль промежуточных действий до наступления конца месяца.</li>
+            <li><strong>Сценарий 7. Разбор лучших и худших кейсов недели:</strong> Фиксация работающих решений в базу знаний роли.</li>
+            <li><strong>Сценарий 8. Фокусировка на высокомаржинальных задачах:</strong> Приоритизация действий с максимальным весом в Системе мотивации (${ans(7)}).</li>
+            <li><strong>Сценарий 9. Проактивное предложение решений:</strong> Выход к руководителю не с проблемой, а с 2 вариантами ее устранения.</li>
+            <li><strong>Сценарий 10. Масштабирование результата и наставничество:</strong> Передача отработанных стандартов новым сотрудникам отдела.</li>
+          </ul>
+        `
+      };
+
+      return templates[docKey] || '<p>Документ формируется системой.</p>';
+    }
+
+    /**
+     * Проверка, открыт ли документ для данной роли
+     * Для ролей 1-4 открыты все 10 документов.
+     * Для роли 5 (isPartial = true, 6/8 ответов) открыты первые 5 документов, а 5 документов, завязанных на KPI/мотивацию/контроль, заблокированы.
+     */
+    function isDocUnlocked(role, docMeta) {
+      if (!role.isPartial) return true;
+      return !docMeta.requiresMetrics;
+    }
+
+    /**
+     * Рендер правой колонки (Компактный реестр из 10 документов с Pop-up подсказками)
+     */
+    function renderRightDocsPanel() {
+      const container = document.getElementById('rightDocsContent');
+
+      if (currentState.mode === 'add') {
+        container.innerHTML = `
+          <div class="pb-3 border-b border-stone-line flex items-center justify-between">
+            <div>
+              <h2 class="font-bold text-base text-ink">
+                Пакет документов роли
+              </h2>
+              <p class="mt-0.5 text-xs text-ink-muted">
+                Опишите должность по центру — система соберет 10 документов:
+              </p>
+            </div>
+            <span class="text-xs font-semibold px-2 py-0.5 bg-stone-bg border border-stone-line text-ink-muted">
+              0 из 10
+            </span>
+          </div>
+
+          <div class="space-y-1.5 opacity-65">
+            ${DOC_CATALOG.map(doc => `
+              <div class="bg-stone-bg border border-stone-line px-3.5 py-2.5 flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <span class="font-mono text-[11px] font-semibold text-ink-muted shrink-0">${doc.num}</span>
+                  <span class="text-xs sm:text-sm font-medium text-ink truncate">${doc.title}</span>
+                </div>
+                <span class="text-[11px] text-ink-muted shrink-0">Ожидает речи</span>
+              </div>
+            `).join('')}
+          </div>
+        `;
+        return;
+      }
+
+      const role = ROLES_DATA.find(r => r.id === currentState.selectedRoleId);
+      const readyDocsCount = DOC_CATALOG.filter(d => isDocUnlocked(role, d)).length;
+
+      const docsListHtml = DOC_CATALOG.map((doc, idx) => {
+        const unlocked = isDocUnlocked(role, doc);
+        const tooltipVerticalClass = idx < 2 ? 'top-full mt-1.5' : 'bottom-full mb-1.5';
+
+        if (unlocked) {
+          return `
+            <div
+              onclick="openDocViewer('${doc.key}')"
+              class="doc-card relative cursor-pointer bg-white border border-stone-line px-3.5 py-2.5 flex items-center justify-between gap-2 group"
+            >
+              <div class="flex items-center gap-2.5 min-w-0">
+                <span class="font-mono text-[11px] font-semibold text-ink-muted group-hover:text-signal shrink-0">
+                  ${doc.num}
+                </span>
+                <span class="text-xs sm:text-sm font-medium text-ink truncate">
+                  ${doc.title}
+                </span>
+
+                <!-- Иконка «?» с всплывающей Pop-up подсказкой смысла документа -->
+                <div
+                  onclick="toggleDocTooltip(event, this)"
+                  tabindex="0"
+                  class="doc-tooltip-trigger shrink-0 w-4 h-4 border border-stone-line bg-stone-bg hover:border-ink text-[10px] font-mono text-ink-muted hover:text-ink flex items-center justify-center"
+                >
+                  ?
+                  <div class="doc-tooltip-box absolute left-2 right-2 sm:left-3 sm:right-auto sm:w-64 ${tooltipVerticalClass} p-3 bg-ink text-white text-xs leading-relaxed shadow-lg z-30">
+                    <div class="font-semibold text-white mb-1">${doc.num}. ${doc.title}</div>
+                    <div class="text-white/80 font-normal">${doc.tooltip}</div>
+                  </div>
+                </div>
+              </div>
+
+              <span class="text-xs font-medium text-signal group-hover:translate-x-0.5 transition-transform shrink-0">
+                Открыть →
+              </span>
+            </div>
+          `;
+        } else {
+          // Заблокированный документ для 5-й роли (5 из 10 закрыты)
+          return `
+            <div
+              onclick="scrollToChecklistItem(7)"
+              class="relative cursor-pointer bg-amber-50/50 hover:bg-amber-50 border border-dashed border-amber-300 px-3.5 py-2.5 flex items-center justify-between gap-2 transition-colors"
+            >
+              <div class="flex items-center gap-2.5 min-w-0">
+                <span class="font-mono text-[11px] font-semibold text-amber-700 shrink-0">
+                  ${doc.num}
+                </span>
+                <span class="text-xs sm:text-sm font-medium text-ink-secondary truncate">
+                  ${doc.title}
+                </span>
+
+                <div
+                  onclick="toggleDocTooltip(event, this)"
+                  tabindex="0"
+                  class="doc-tooltip-trigger shrink-0 w-4 h-4 border border-amber-300 bg-white text-[10px] font-mono text-amber-800 flex items-center justify-center"
+                >
+                  ?
+                  <div class="doc-tooltip-box absolute left-2 right-2 sm:left-3 sm:right-auto sm:w-64 ${tooltipVerticalClass} p-3 bg-ink text-white text-xs leading-relaxed shadow-lg z-30">
+                    <div class="font-semibold text-white mb-1">${doc.num}. ${doc.title}</div>
+                    <div class="text-white/80 font-normal">${doc.tooltip}</div>
+                  </div>
+                </div>
+              </div>
+
+              <span class="text-[11px] font-medium text-amber-800 shrink-0">
+                🔒 Ждет п. 7–8
+              </span>
+            </div>
+          `;
+        }
+      }).join('');
+
+      container.innerHTML = `
+        <!-- Шапка правой колонки -->
+        <div class="pb-3 border-b border-stone-line flex items-center justify-between gap-2">
+          <div>
+            <h2 class="font-bold text-base text-ink">
+              Готовые документы
+            </h2>
+            <p class="text-xs text-ink-muted mt-0.5">
+              Нажмите на строку для чтения · наведите на «?» для описания
+            </p>
+          </div>
+          <span class="text-xs font-semibold px-2.5 py-1 shrink-0 ${role.isPartial ? 'bg-amber-100 text-amber-900' : 'bg-emerald-50 text-emerald-800'}">
+            ${readyDocsCount} из 10
+          </span>
+        </div>
+
+        ${role.isPartial ? `
+          <div class="px-3 py-2 bg-amber-50 border border-amber-200 text-xs text-amber-900">
+            Открыто 5 базовых документов. Доответьте на вопросы <strong>№7 и №8</strong> по центру, чтобы открыть остальные 5 документов.
+          </div>
+        ` : ''}
+
+        <!-- Компактный список из 10 документов -->
+        <div class="space-y-1.5">
+          ${docsListHtml}
+        </div>
+
+        <!-- Скачать весь пакет -->
+        <div class="pt-3 border-t border-stone-line">
+          <button
+            type="button"
+            onclick="triggerGenerationWithFeedback('Выгрузка полного пакета из 10 документов роли «${role.shortTitle}» (.PDF / .DOCX)')"
+            class="w-full py-3 px-4 border border-ink bg-stone-bg hover:bg-ink hover:text-white text-xs font-semibold text-ink transition-colors"
+          >
+            Скачать пакет из 10 документов (.PDF / .DOCX)
+          </button>
+        </div>
+      `;
+    }
+
+    /**
+     * Прокрутка к вопросу №7 или №8 в центральной колонке
+     */
+    function scrollToChecklistItem(stepNum) {
+      if (window.innerWidth < 1024) {
+        switchMobileTab('center');
+      }
+      const targetEl = document.getElementById(`check-step-${stepNum}`);
+      if (targetEl) {
+        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const inputEl = document.getElementById(`clarifyInput-${stepNum}`);
+        if (inputEl) {
+          setTimeout(() => inputEl.focus(), 350);
+        }
+      }
+    }
+
+    /**
+     * Подстановка примера ответа в желтое окошко 5-й роли
+     */
+    function fillSampleClarification(stepNum) {
+      const role = ROLES_DATA.find(r => r.id === currentState.selectedRoleId);
+      if (!role) return;
+      const item = role.checklist.find(i => i.step === stepNum);
+      const inputEl = document.getElementById(`clarifyInput-${stepNum}`);
+      if (item && item.sampleClarification && inputEl) {
+        inputEl.value = item.sampleClarification;
+      }
+    }
+
+    /**
+     * Имитация аудиоплеера исходного голосового описания
+     */
+    function toggleSimulatedAudio(totalDurationStr) {
+      const btn = document.getElementById('btnAudioPlay');
+      const timerDisplay = document.getElementById('audioTimerDisplay');
+      const progressBar = document.getElementById('audioProgressBar');
+
+      if (currentState.isAudioPlaying) {
+        stopSimulatedAudio();
+        return;
+      }
+
+      currentState.isAudioPlaying = true;
+      if (btn) btn.textContent = '❚❚';
+
+      currentState.audioInterval = setInterval(() => {
+        currentState.audioSeconds = (currentState.audioSeconds + 1) % 30;
+        const pct = Math.min(100, Math.round((currentState.audioSeconds / 25) * 100));
+        const secFormatted = String(currentState.audioSeconds).padStart(2, '0');
+        if (timerDisplay) timerDisplay.textContent = `00:${secFormatted} / ${totalDurationStr}`;
+        if (progressBar) progressBar.style.width = `${pct}%`;
+      }, 450);
+    }
+
+    function stopSimulatedAudio() {
+      currentState.isAudioPlaying = false;
+      if (currentState.audioInterval) {
+        clearInterval(currentState.audioInterval);
+        currentState.audioInterval = null;
+      }
+      currentState.audioSeconds = 0;
+      const btn = document.getElementById('btnAudioPlay');
+      if (btn) btn.textContent = '▶';
+    }
+
+    /**
+     * Разворачивание / сворачивание текста расшифровки голоса
+     */
+    function toggleTranscriptBox() {
+      const box = document.getElementById('rawTranscriptBox');
+      const btn = document.getElementById('btnToggleTranscript');
+      if (!box || !btn) return;
+
+      currentState.isTranscriptOpen = !currentState.isTranscriptOpen;
+      if (currentState.isTranscriptOpen) {
+        box.classList.remove('hidden');
+        btn.textContent = 'Скрыть текст рассказа ↑';
+      } else {
+        box.classList.add('hidden');
+        btn.textContent = 'Показать текст рассказа ↓';
+      }
+    }
+
+    /**
+     * БРАУЗЕРНАЯ ЗАПИСЬ ГОЛОСА (WEB SPEECH API)
+     */
+    let speechRecognitionInstance = null;
+    let isRecordingVoice = false;
+
+    function toggleMainVoiceRecording() {
+      const textarea = document.getElementById('newRoleTranscriptInput');
+      const statusNotice = document.getElementById('voiceStatusNotice');
+      const btnLabel = document.getElementById('micBtnLabel');
+      const dotIndicator = document.getElementById('micDotIndicator');
+
+      if (isRecordingVoice) {
+        stopVoiceRecognition();
+        return;
+      }
+
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        if (statusNotice) {
+          statusNotice.textContent = 'Голосовой ввод недоступен в этом браузере — нажмите «Вставить готовый пример»';
+          statusNotice.classList.add('text-signal');
+        }
+        if (textarea) textarea.focus();
+        return;
+      }
+
+      try {
+        speechRecognitionInstance = new SpeechRecognition();
+        speechRecognitionInstance.lang = 'ru-RU';
+        speechRecognitionInstance.continuous = true;
+        speechRecognitionInstance.interimResults = true;
+
+        let finalCapturedText = textarea && textarea.value ? textarea.value + ' ' : '';
+
+        speechRecognitionInstance.onstart = function () {
+          isRecordingVoice = true;
+          if (btnLabel) btnLabel.textContent = '⏹ Остановить запись';
+          if (dotIndicator) dotIndicator.classList.add('recording-pulse', 'bg-red-500');
+          if (statusNotice) {
+            statusNotice.textContent = 'Идет запись — говорите...';
+            statusNotice.classList.add('text-signal', 'font-medium');
+          }
+        };
+
+        speechRecognitionInstance.onresult = function (event) {
+          let interimTranscript = '';
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              finalCapturedText += event.results[i][0].transcript + ' ';
+            } else {
+              interimTranscript += event.results[i][0].transcript;
+            }
+          }
+          if (textarea) {
+            textarea.value = finalCapturedText + interimTranscript;
+          }
+        };
+
+        speechRecognitionInstance.onerror = function () {
+          stopVoiceRecognition();
+          if (statusNotice) {
+            statusNotice.textContent = 'Микрофон отключен — нажмите «Вставить готовый пример»';
+          }
+        };
+
+        speechRecognitionInstance.onend = function () {
+          stopVoiceRecognition();
+        };
+
+        speechRecognitionInstance.start();
+      } catch (err) {
+        if (textarea) textarea.focus();
+      }
+    }
+
+    function startMiniVoiceInput(stepNum) {
+      const inputEl = document.getElementById(`clarifyInput-${stepNum}`);
+      const btnEl = document.getElementById(`btnMiniMic-${stepNum}`);
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+      if (!SpeechRecognition) {
+        fillSampleClarification(stepNum);
+        if (inputEl) inputEl.focus();
+        return;
+      }
+
+      try {
+        const rec = new SpeechRecognition();
+        rec.lang = 'ru-RU';
+        rec.continuous = false;
+        rec.interimResults = true;
+
+        if (btnEl) btnEl.innerHTML = '<span class="text-signal">● Слушаю...</span>';
+
+        rec.onresult = function (e) {
+          let transcript = '';
+          for (let i = 0; i < e.results.length; i++) {
+            transcript += e.results[i][0].transcript;
+          }
+          if (inputEl) inputEl.value = transcript;
+        };
+
+        rec.onend = function () {
+          if (btnEl) btnEl.innerHTML = '<span>🎤 Наговорить</span>';
+        };
+
+        rec.onerror = function () {
+          if (btnEl) btnEl.innerHTML = '<span>🎤 Наговорить</span>';
+          fillSampleClarification(stepNum);
+        };
+
+        rec.start();
+      } catch (e) {
+        fillSampleClarification(stepNum);
+      }
+    }
+
+    function stopVoiceRecognition() {
+      isRecordingVoice = false;
+      if (speechRecognitionInstance) {
+        try {
+          speechRecognitionInstance.stop();
+        } catch (e) {}
+        speechRecognitionInstance = null;
+      }
+      const btnLabel = document.getElementById('micBtnLabel');
+      const dotIndicator = document.getElementById('micDotIndicator');
+      const statusNotice = document.getElementById('voiceStatusNotice');
+
+      if (btnLabel) btnLabel.textContent = '🎤 Записать голосом';
+      if (dotIndicator) dotIndicator.classList.remove('recording-pulse', 'bg-red-500');
+      if (statusNotice) {
+        statusNotice.textContent = 'Текст записан';
+        statusNotice.classList.remove('text-signal', 'font-medium');
+      }
+    }
+
+    /**
+     * Быстрая подстановка примера голосового описания в режиме «+ Добавить роль»
+     */
+    function insertSampleNewRoleMonologue() {
+      const textarea = document.getElementById('newRoleTranscriptInput');
+      if (!textarea) return;
+      textarea.value = "«Хочу упаковать роль Бизнес-ассистента собственника. Главный результат этой роли — освободить мне минимум 15 часов в неделю от операционной рутины, согласований и контроля мелких поручений. Каждый день ассистент ведет мой календарь, готовит фактуру к встречам, фиксирует протоколы созвонов и проверяет исполнение задач руководителями отделов. Оклад 70 000 рублей плюс бонус 30 000 рублей за 100% закрытие поручений в срок и отсутствие накладок в расписании. Контролировать хочу каждый вечер коротким списком: что закрыто за день, что в работе и какие решения требуют моего личного участия завтра...»";
+      textarea.focus();
+    }
+
+    function handleNewRoleSubmit() {
+      const textarea = document.getElementById('newRoleTranscriptInput');
+      if (textarea && !textarea.value.trim()) {
+        insertSampleNewRoleMonologue();
+      }
+      triggerGenerationWithFeedback('Генерация пакета документов для новой роли');
+    }
+
+    /**
+     * DOCUMENT VIEWER MODAL (ОКНО ЧТЕНИЯ 10 ГОТОВЫХ ДОКУМЕНТОВ РОЛИ)
+     */
+    function openDocViewer(docKey) {
+      const role = ROLES_DATA.find(r => r.id === currentState.selectedRoleId);
+      if (!role) return;
+
+      currentState.viewerActiveDocKey = docKey;
+      const modal = document.getElementById('docViewerModal');
+      const titleEl = document.getElementById('viewerRoleTitle');
+      const badgeEl = document.getElementById('viewerRoleBadge');
+
+      if (titleEl) titleEl.textContent = role.title;
+      if (badgeEl) badgeEl.textContent = `${role.department} · Пакет из 10 документов`;
+
+      renderViewerTabs(role);
+      renderViewerBody(role, docKey);
+
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function renderViewerTabs(role) {
+      const tabsBar = document.getElementById('viewerTabsBar');
+
+      tabsBar.innerHTML = DOC_CATALOG.map(doc => {
+        const isActive = currentState.viewerActiveDocKey === doc.key;
+        const unlocked = isDocUnlocked(role, doc);
+
+        if (!unlocked) {
+          return `
+            <button
+              type="button"
+              onclick="closeDocViewer(); scrollToChecklistItem(7);"
+              class="w-auto md:w-full text-left px-3 py-2 border border-dashed border-amber-300 bg-amber-50/70 text-amber-900 text-xs flex items-center justify-between gap-2 shrink-0"
+            >
+              <span class="truncate">${doc.num}. ${doc.title}</span>
+              <span class="text-[10px] shrink-0">🔒 п.7–8</span>
+            </button>
+          `;
+        }
+        return `
+          <button
+            type="button"
+            onclick="switchViewerTab('${doc.key}')"
+            class="w-auto md:w-full text-left px-3 py-2 border text-xs font-medium flex items-center justify-between gap-2 shrink-0 transition-colors ${
+              isActive
+                ? 'bg-ink text-white border-ink'
+                : 'bg-white text-ink-secondary border-stone-line hover:text-ink hover:border-ink'
+            }"
+          >
+            <span class="truncate">${doc.num}. ${doc.title}</span>
+          </button>
+        `;
+      }).join('');
+    }
+
+    function switchViewerTab(docKey) {
+      const role = ROLES_DATA.find(r => r.id === currentState.selectedRoleId);
+      if (!role) return;
+      currentState.viewerActiveDocKey = docKey;
+      renderViewerTabs(role);
+      renderViewerBody(role, docKey);
+    }
+
+    function toggleDocTooltip(event, el) {
+      event.stopPropagation();
+      const wasOpen = el.classList.contains('tooltip-open');
+      document.querySelectorAll('.doc-tooltip-trigger.tooltip-open').forEach(node => {
+        node.classList.remove('tooltip-open');
+      });
+      if (!wasOpen) {
+        el.classList.add('tooltip-open');
+      }
+    }
+
+    function renderViewerBody(role, docKey) {
+      const bodyEl = document.getElementById('viewerDocumentBody');
+      const purposeEl = document.getElementById('viewerDocPurposeBox');
+      if (!bodyEl) return;
+
+      const docMeta = DOC_CATALOG.find(d => d.key === docKey);
+      if (purposeEl && docMeta) {
+        purposeEl.innerHTML = `<strong class="text-ink">${docMeta.num}. ${docMeta.title}:</strong> ${docMeta.tooltip}`;
+      }
+
+      bodyEl.innerHTML = getRoleDocumentHtml(role, docKey);
+      bodyEl.querySelectorAll('table').forEach(table => {
+        if (!table.parentElement.classList.contains('doc-table-scroll')) {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'doc-table-scroll overflow-x-auto custom-scroll -mx-1 px-1';
+          table.parentNode.insertBefore(wrapper, table);
+          wrapper.appendChild(table);
+        }
+      });
+    }
+
+    function closeDocViewer() {
+      const modal = document.getElementById('docViewerModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    /**
+     * КОНВЕРСИОННЫЙ СЦЕНАРИЙ: ИНДИКАЦИЯ -> ПРОМЕЖУТОЧНЫЙ ПОП-АП TELEGRAM
+     */
+    function triggerGenerationWithFeedback(actionContextTitle) {
+      stopVoiceRecognition();
+      const loader = document.getElementById('conveyorLoader');
+      loader.classList.remove('hidden');
+      loader.classList.add('flex');
+
+      setTimeout(() => {
+        loader.classList.add('hidden');
+        loader.classList.remove('flex');
+        openConversionModal(actionContextTitle);
+      }, 700);
+    }
+
+    function openConversionModal(contextTitle) {
+      const tagEl = document.getElementById('tgModalContextTag');
+      if (tagEl && contextTitle) {
+        tagEl.textContent = contextTitle;
+      }
+      const modal = document.getElementById('tgModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeConversionModal() {
+      const modal = document.getElementById('tgModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    /**
+     * Мобильное переключение между 3 колонками (< 1024px)
+     */
+    function switchMobileTab(tabName) {
+      const pRoles = document.getElementById('panelRoles');
+      const pCenter = document.getElementById('panelCenter');
+      const pDocs = document.getElementById('panelDocs');
+
+      const tRoles = document.getElementById('mobTabRoles');
+      const tCenter = document.getElementById('mobTabCenter');
+      const tDocs = document.getElementById('mobTabDocs');
+
+      [pRoles, pCenter, pDocs].forEach(p => {
+        p.classList.add('hidden');
+        p.classList.remove('flex');
+      });
+
+      [tRoles, tCenter, tDocs].forEach(t => {
+        t.classList.remove('border-b-signal', 'text-ink', 'font-semibold', 'bg-stone-bg/50');
+        t.classList.add('border-b-transparent', 'text-ink-secondary');
+      });
+
+      if (tabName === 'roles') {
+        pRoles.classList.remove('hidden');
+        pRoles.classList.add('flex');
+        tRoles.classList.add('border-b-signal', 'text-ink', 'font-semibold', 'bg-stone-bg/50');
+      } else if (tabName === 'docs') {
+        pDocs.classList.remove('hidden');
+        pDocs.classList.add('flex');
+        tDocs.classList.add('border-b-signal', 'text-ink', 'font-semibold', 'bg-stone-bg/50');
+      } else {
+        pCenter.classList.remove('hidden');
+        pCenter.classList.add('flex');
+        tCenter.classList.add('border-b-signal', 'text-ink', 'font-semibold', 'bg-stone-bg/50');
+      }
+    }
+
+    document.addEventListener('click', function () {
+      document.querySelectorAll('.doc-tooltip-trigger.tooltip-open').forEach(node => {
+        node.classList.remove('tooltip-open');
+      });
+    });
+
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') {
+        closeDocViewer();
+        closeConversionModal();
+      }
+    });
+
+    window.addEventListener('DOMContentLoaded', initApp);
+  </script>
+</body>
+</html>

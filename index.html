@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="ru" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Сервис Анти-Отчеты</title>
+  <meta name="description" content="Получи за 30 минут с помощью нейросети набор регламентов для контроля сотрудников." />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&family=Onest:wght@400;500;600;700&family=Unbounded:wght@600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['Unbounded', 'sans-serif'],
+            sans: ['Onest', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            stone: {
+              bg: '#F3F1EA',
+              surface: '#FAF9F5',
+              subtle: '#E8E4D9',
+              line: '#D6D1C4'
+            },
+            obsidian: {
+              DEFAULT: '#111317',
+              card: '#171A20',
+              hover: '#1D2129',
+              line: '#262A34'
+            },
+            ink: {
+              DEFAULT: '#121417',
+              secondary: '#4A505A',
+              muted: '#7B828E'
+            },
+            signal: {
+              DEFAULT: '#FF4D1C',
+              hover: '#E03E10',
+              soft: 'rgba(255, 77, 28, 0.12)'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      background-color: #F3F1EA;
+      color: #121417;
+      font-family: 'Onest', sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* Архитектурный микро-паттерн бумаги */
+    .architectural-paper {
+      background-color: #F3F1EA;
+      background-image:
+        radial-gradient(rgba(18, 20, 23, 0.07) 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+
+    /* Чертежная сетка для темных секций */
+    .obsidian-grid {
+      background-color: #111317;
+      background-image:
+        linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+      background-size: 72px 72px;
+    }
+
+    /* Декоративные крестики на пересечениях швейцарской сетки */
+    .crosshair {
+      position: relative;
+    }
+    .crosshair::after {
+      content: '+';
+      position: absolute;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      line-height: 1;
+      color: #9A9486;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .crosshair-br::after {
+      bottom: -8px;
+      right: -5px;
+    }
+    .crosshair-bl::after {
+      bottom: -8px;
+      left: -5px;
+    }
+
+    /* Угловые архитектурные засечки для квадратных модулей */
+    .square-module {
+      position: relative;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .square-module::before {
+      content: '';
+      position: absolute;
+      top: -1px;
+      left: -1px;
+      width: 8px;
+      height: 8px;
+      border-top: 2px solid #FF4D1C;
+      border-left: 2px solid #FF4D1C;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      pointer-events: none;
+    }
+    .square-module:hover::before {
+      opacity: 1;
+    }
+
+    /* Интерактивная строка списка на первом экране */
+    .spec-row {
+      transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .spec-row:hover {
+      background-color: #FFFFFF;
+      transform: translateX(6px);
+      box-shadow: -4px 0 0 0 #FF4D1C;
+    }
+    .spec-row:hover .spec-dot {
+      background-color: #FF4D1C;
+    }
+
+    /* Карточка в темной секции (квадратный архитектурный модуль с воздухом) */
+    .bento-card {
+      background-color: #161920;
+      border: 1px solid #262B36;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .bento-card:hover {
+      background-color: #1B1F28;
+      border-color: rgba(255, 77, 28, 0.5);
+      transform: translateY(-4px);
+      box-shadow: 6px 6px 0 0 rgba(255, 77, 28, 0.2);
+    }
+    .bento-card:hover .card-icon {
+      border-color: #FF4D1C;
+      color: #FF4D1C;
+      background-color: rgba(255, 77, 28, 0.12);
+    }
+
+    /* Выделение ключевых смыслов внутри карточек */
+    .editorial-highlight {
+      color: #FFFFFF;
+      font-weight: 600;
+      background: linear-gradient(120deg, rgba(255, 77, 28, 0.22) 0%, rgba(255, 77, 28, 0.06) 100%);
+      border-bottom: 1px solid rgba(255, 77, 28, 0.65);
+      padding: 1px 4px;
+    }
+
+    /* Главная акцентная кнопка — строгая квадратная геометрия */
+    .btn-signal {
+      background-color: #FF4D1C;
+      color: #FFFFFF;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 5px 5px 0 0 #121417;
+    }
+    .btn-signal:hover {
+      background-color: #E03E10;
+      transform: translate(-2px, -2px);
+      box-shadow: 7px 7px 0 0 #121417;
+    }
+    .btn-signal:active {
+      transform: translate(0, 0);
+      box-shadow: 2px 2px 0 0 #121417;
+    }
+
+    .btn-signal-dark {
+      background-color: #FF4D1C;
+      color: #FFFFFF;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 5px 5px 0 0 rgba(255, 255, 255, 0.18);
+    }
+    .btn-signal-dark:hover {
+      background-color: #E03E10;
+      transform: translate(-2px, -2px);
+      box-shadow: 7px 7px 0 0 rgba(255, 255, 255, 0.3);
+    }
+  </style>
+</head>
+<body class="antialiased selection:bg-signal selection:text-white">
+
+  <!-- =========================================================================
+       ШАПКА САЙТА (СТРОГАЯ КВАДРАТНАЯ БАЛКА С ВОЗДУХОМ)
+       ========================================================================= -->
+  <header class="sticky top-0 z-40 bg-stone-bg/95 backdrop-blur-md border-b border-stone-line">
+    <div class="max-w-7xl mx-auto border-x border-stone-line px-6 sm:px-12 lg:px-20 h-20 flex items-center justify-between gap-4">
+      
+      <!-- Мессенджеры и контакты слева (открывают промежуточный поп-ап, не кидают сразу в ТГ) -->
+      <div class="flex items-center gap-3">
+        <button
+          type="button"
+          onclick="openTgModal()"
+          aria-label="Telegram"
+          class="w-10 h-10 border border-stone-line bg-stone-surface hover:border-signal hover:bg-signal hover:text-white text-ink flex items-center justify-center transition-all"
+        >
+          <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+            <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+          </svg>
+        </button>
+        <button
+          type="button"
+          onclick="openTgModal()"
+          aria-label="Связаться"
+          class="w-10 h-10 border border-stone-line bg-stone-surface hover:border-signal hover:bg-signal hover:text-white text-ink flex items-center justify-center transition-all"
+        >
+          <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+            <path d="M6.62 10.79a15.053 15.053 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24c1.12.37 2.33.57 3.58.57a1 1 0 011 1V20a1 1 0 01-1 1C10.61 21 3 13.39 3 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.46.57 3.59a1 1 0 01-.25 1.01l-2.2 2.19z"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Название по центру -->
+      <a href="#" class="font-display font-bold text-sm sm:text-base tracking-tight text-ink flex items-center gap-3">
+        <span class="w-2.5 h-2.5 bg-signal shrink-0"></span>
+        <span>Сервис Анти-Отчеты</span>
+      </a>
+
+      <!-- Навигационные действия справа: переход в app.html и поп-ап консультации -->
+      <div class="flex items-center gap-2.5">
+        <a
+          href="app.html"
+          class="hidden md:inline-flex items-center gap-2 px-4 h-10 border border-ink bg-obsidian text-white hover:bg-signal hover:border-signal font-mono text-xs font-semibold uppercase tracking-wider transition-colors"
+        >
+          <span>ДЕМО-ПРОТОТИП →</span>
+        </a>
+        <button
+          type="button"
+          onclick="openTgModal()"
+          class="hidden sm:inline-flex items-center px-4 h-10 border border-stone-line bg-stone-surface hover:border-ink font-mono text-xs font-semibold uppercase tracking-wider text-ink transition-colors"
+        >
+          КОНСУЛЬТАЦИЯ
+        </button>
+        <button
+          type="button"
+          onclick="openTgModal()"
+          aria-label="Меню"
+          class="sm:hidden w-10 h-10 border border-stone-line bg-stone-surface hover:border-ink flex items-center justify-center transition-colors"
+        >
+          <svg class="w-4 h-4 stroke-current text-ink" fill="none" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="square" stroke-linejoin="miter" d="M4 7h16M4 12h16M4 17h16" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- =========================================================================
+       БЛОК 1: ГЛАВНЫЙ ЭКРАН (ПРОСТОРНОЕ АРХИТЕКТУРНОЕ ПАСПАРТУ)
+       ========================================================================= -->
+  <section class="architectural-paper border-b border-stone-line">
+    <div class="max-w-7xl mx-auto border-x border-stone-line px-6 sm:px-12 lg:px-20 py-16 sm:py-24 lg:py-32">
+      
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-stretch">
+        
+        <!-- Левая колонка: Главный заголовок + свободный воздух + CTA (7 колонок) -->
+        <div class="lg:col-span-7 bg-stone-surface border border-stone-line p-8 sm:p-14 lg:p-16 flex flex-col justify-between crosshair crosshair-br relative overflow-hidden">
+          
+          <!-- Деликатная чертежная геометрия на фоне -->
+          <svg class="absolute -right-24 -bottom-24 w-[420px] h-[420px] text-stone-line/35 pointer-events-none" viewBox="0 0 400 400" fill="none">
+            <rect x="40" y="40" width="320" height="320" stroke="currentColor" stroke-width="1" stroke-dasharray="6 6"/>
+            <rect x="100" y="100" width="200" height="200" stroke="currentColor" stroke-width="1"/>
+            <line x1="0" y1="200" x2="400" y2="200" stroke="currentColor" stroke-width="1"/>
+            <line x1="200" y1="0" x2="200" y2="400" stroke="currentColor" stroke-width="1"/>
+          </svg>
+
+          <div class="relative z-10 max-w-xl">
+            <div class="w-12 h-1 bg-signal mb-8"></div>
+            <h1 class="font-display font-extrabold text-2xl sm:text-3xl lg:text-[36px] leading-[1.28] tracking-tight text-ink uppercase">
+              ПОЛУЧИ ЗА 30 МИНУТ С ПОМОЩЬЮ НЕЙРОСЕТИ НАБОР РЕГЛАМЕНТОВ ДЛЯ КОНТРОЛЯ СОТРУДНИКОВ
+            </h1>
+          </div>
+
+          <div class="mt-14 sm:mt-20 relative z-10 pt-8 border-t border-stone-line/70 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+            <a
+              href="app.html"
+              class="btn-signal inline-flex items-center justify-between gap-6 px-8 py-5 font-display font-bold text-xs sm:text-sm uppercase tracking-wider group"
+            >
+              <span>ПОЛУЧИТЬ ИНСТРУМЕНТЫ БЕСПЛАТНО</span>
+              <span class="w-7 h-7 bg-white/15 flex items-center justify-center group-hover:translate-x-1 transition-transform">
+                <svg class="w-4 h-4 stroke-current" fill="none" stroke-width="2.2" viewBox="0 0 24 24">
+                  <path stroke-linecap="square" stroke-linejoin="miter" d="M5 12h14M13 5l7 7-7 7" />
+                </svg>
+              </span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Правая колонка: Реестр из 6 регламентов с раздельными квадратными плашками (5 колонок) -->
+        <div class="lg:col-span-5 flex flex-col justify-between gap-4">
+          <ul class="space-y-3.5">
+            
+            <li>
+              <a href="app.html" class="spec-row bg-stone-surface border border-stone-line px-7 py-5 flex items-center justify-between gap-4">
+                <div class="flex items-center gap-4">
+                  <span class="spec-dot w-2.5 h-2.5 bg-ink transition-all shrink-0"></span>
+                  <span class="text-base sm:text-lg font-semibold text-ink">Должностная инструкция</span>
+                </div>
+                <span class="font-mono text-xs font-semibold text-ink-muted">01</span>
+              </a>
+            </li>
+
+            <li>
+              <a href="app.html" class="spec-row bg-stone-surface border border-stone-line px-7 py-5 flex items-center justify-between gap-4">
+                <div class="flex items-center gap-4">
+                  <span class="spec-dot w-2.5 h-2.5 bg-ink transition-all shrink-0"></span>
+                  <span class="text-base sm:text-lg font-semibold text-ink">KPI + форма отчетности</span>
+                </div>
+                <span class="font-mono text-xs font-semibold text-ink-muted">02</span>
+              </a>
+            </li>
+
+            <li>
+              <a href="app.html" class="spec-row bg-stone-surface border border-stone-line px-7 py-5 flex items-center justify-between gap-4">
+                <div class="flex items-center gap-4">
+                  <span class="spec-dot w-2.5 h-2.5 bg-ink transition-all shrink-0"></span>
+                  <span class="text-base sm:text-lg font-semibold text-ink">Карта рабочего дня</span>
+                </div>
+                <span class="font-mono text-xs font-semibold text-ink-muted">03</span>
+              </a>
+            </li>
+
+            <li>
+              <a href="app.html" class="spec-row bg-stone-surface border border-stone-line px-7 py-5 flex items-center justify-between gap-4">
+                <div class="flex items-center gap-4">
+                  <span class="spec-dot w-2.5 h-2.5 bg-ink transition-all shrink-0"></span>
+                  <span class="text-base sm:text-lg font-semibold text-ink">Финансовая мотивация</span>
+                </div>
+                <span class="font-mono text-xs font-semibold text-ink-muted">04</span>
+              </a>
+            </li>
+
+            <li>
+              <a href="app.html" class="spec-row bg-stone-surface border border-stone-line px-7 py-5 flex items-center justify-between gap-4">
+                <div class="flex items-center gap-4">
+                  <span class="spec-dot w-2.5 h-2.5 bg-ink transition-all shrink-0"></span>
+                  <span class="text-base sm:text-lg font-semibold text-ink">Сценарии роста и развития</span>
+                </div>
+                <span class="font-mono text-xs font-semibold text-ink-muted">05</span>
+              </a>
+            </li>
+
+            <li>
+              <a href="app.html" class="spec-row bg-stone-surface border border-stone-line px-7 py-5 flex items-center justify-between gap-4">
+                <div class="flex items-center gap-4">
+                  <span class="spec-dot w-2.5 h-2.5 bg-ink transition-all shrink-0"></span>
+                  <span class="text-base sm:text-lg font-semibold text-ink">ТЗ на поиск и найм</span>
+                </div>
+                <span class="font-mono text-xs font-semibold text-ink-muted">06</span>
+              </a>
+            </li>
+
+          </ul>
+
+          <!-- Нижняя навигационная плашка -->
+          <div class="pt-2 flex items-center justify-end">
+            <a href="#instruments" aria-label="Вниз" class="w-11 h-11 border border-stone-line bg-stone-surface flex items-center justify-center text-ink hover:border-signal hover:bg-signal hover:text-white transition-colors">
+              <svg class="w-4 h-4 stroke-current" fill="none" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="square" stroke-linejoin="miter" d="M19 9l-7 7-7-7" />
+              </svg>
+            </a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================================
+       БЛОК 2: АНТИ-ОТЧЕТЫ – КОНТРОЛЬ И ПОРЯДОК В УПРАВЛЕНИИ КОМАНДОЙ
+       (2 ШИРОКИЕ КОЛОНКИ С ВОЗДУШНЫМИ ЗАЗОРАМИ МЕЖДУ КВАДРАТНЫМИ МОДУЛЯМИ)
+       ========================================================================= -->
+  <section id="instruments" class="obsidian-grid text-white border-b border-obsidian-line">
+    <div class="max-w-7xl mx-auto border-x border-obsidian-line px-6 sm:px-12 lg:px-20 py-24 sm:py-28 lg:py-32">
+      
+      <!-- Шапка секции с просторным отступом снизу -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 pb-16 sm:pb-20 border-b border-obsidian-line">
+        <div class="lg:col-span-7">
+          <div class="w-12 h-1 bg-signal mb-6"></div>
+          <h2 class="font-display font-bold text-xl sm:text-3xl lg:text-[32px] leading-[1.28] tracking-tight uppercase text-white max-w-2xl">
+            АНТИ-ОТЧЕТЫ – КОНТРОЛЬ И ПОРЯДОК В УПРАВЛЕНИИ КОМАНДОЙ
+          </h2>
+        </div>
+        <div class="lg:col-span-5 flex items-end">
+          <p class="text-base sm:text-lg text-white/75 leading-relaxed">
+            Люди работают настолько хорошо, насколько качественно вы ими управляете. Что необходимо для <strong class="font-bold text-white underline decoration-signal underline-offset-4">качественного контроля сотрудника</strong> в бизнесе:
+          </p>
+        </div>
+      </div>
+
+      <!-- Сетка 6 карточек: 2 широкие колонки с воздухом между квадратными блоками -->
+      <div class="mt-16 sm:mt-20 grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">
+        
+        <!-- 1. ДОЛЖНОСТНАЯ ИНСТРУКЦИЯ -->
+        <article class="bento-card square-module p-8 sm:p-11 lg:p-12 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between gap-4 pb-6 mb-7 border-b border-white/10">
+              <div class="card-icon w-12 h-12 border border-white/15 bg-white/5 flex items-center justify-center text-white transition-colors">
+                <svg class="w-5 h-5 stroke-current" fill="none" stroke-width="1.75" viewBox="0 0 24 24">
+                  <path stroke-linecap="square" stroke-linejoin="miter" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <span class="font-mono text-xs font-semibold text-white/40">01</span>
+            </div>
+            <h3 class="font-display font-bold text-base sm:text-lg uppercase tracking-wide text-white">
+              ДОЛЖНОСТНАЯ ИНСТРУКЦИЯ
+            </h3>
+            <p class="mt-5 text-sm sm:text-base text-white/75 leading-[1.75]">
+              Представьте, у каждого в команде есть простой и понятный документ, где написано: <strong class="editorial-highlight">что он делает, за что отвечает, и как его работу будут оценивать</strong>. Больше не будет ситуаций "я не знал, что это моя задача" или "а кто это должен делать?". Нейросеть соберет самое "важное" о роли в простой и понятный документ.
+            </p>
+          </div>
+        </article>
+
+        <!-- 2. KPI + ФОРМА ОТЧЕТНОСТИ -->
+        <article class="bento-card square-module p-8 sm:p-11 lg:p-12 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between gap-4 pb-6 mb-7 border-b border-white/10">
+              <div class="card-icon w-12 h-12 border border-white/15 bg-white/5 flex items-center justify-center text-white transition-colors">
+                <svg class="w-5 h-5 stroke-current" fill="none" stroke-width="1.75" viewBox="0 0 24 24">
+                  <path stroke-linecap="square" stroke-linejoin="miter" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <span class="font-mono text-xs font-semibold text-white/40">02</span>
+            </div>
+            <h3 class="font-display font-bold text-base sm:text-lg uppercase tracking-wide text-white">
+              KPI + ФОРМА ОТЧЕТНОСТИ
+            </h3>
+            <p class="mt-5 text-sm sm:text-base text-white/75 leading-[1.75]">
+              Фокус на ключевых результатах и <strong class="editorial-highlight">объективная оценка работы команды</strong>. Четкие KPI и простая отчетность сделают прозрачным вклад каждого сотрудника в общий результат, а также обеспечат <strong class="editorial-highlight">достижение ключевых бизнес-целей</strong> и поддержат необходимый уровень дисциплины, мотивации и контроля.
+            </p>
+          </div>
+        </article>
+
+        <!-- 3. ФИНАНСОВАЯ МОТИВАЦИЯ -->
+        <article class="bento-card square-module p-8 sm:p-11 lg:p-12 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between gap-4 pb-6 mb-7 border-b border-white/10">
+              <div class="card-icon w-12 h-12 border border-white/15 bg-white/5 flex items-center justify-center text-white transition-colors">
+                <svg class="w-5 h-5 stroke-current" fill="none" stroke-width="1.75" viewBox="0 0 24 24">
+                  <path stroke-linecap="square" stroke-linejoin="miter" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <span class="font-mono text-xs font-semibold text-white/40">03</span>
+            </div>
+            <h3 class="font-display font-bold text-base sm:text-lg uppercase tracking-wide text-white">
+              ФИНАНСОВАЯ МОТИВАЦИЯ
+            </h3>
+            <p class="mt-5 text-sm sm:text-base text-white/75 leading-[1.75]">
+              Платите за результат, через достижение измеримых KPI и результатов. Фокус на достижении общих целей. Для бизнеса – <strong class="editorial-highlight">полная прозрачность и справедливость оплаты труда за результат</strong>. Для команды – каждый сотрудник понимает, как увеличить свой доход.
+            </p>
+          </div>
+        </article>
+
+        <!-- 4. КАРТА РАБОЧЕГО ДНЯ -->
+        <article class="bento-card square-module p-8 sm:p-11 lg:p-12 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between gap-4 pb-6 mb-7 border-b border-white/10">
+              <div class="card-icon w-12 h-12 border border-white/15 bg-white/5 flex items-center justify-center text-white transition-colors">
+                <svg class="w-5 h-5 stroke-current" fill="none" stroke-width="1.75" viewBox="0 0 24 24">
+                  <path stroke-linecap="square" stroke-linejoin="miter" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <span class="font-mono text-xs font-semibold text-white/40">04</span>
+            </div>
+            <h3 class="font-display font-bold text-base sm:text-lg uppercase tracking-wide text-white">
+              КАРТА РАБОЧЕГО ДНЯ
+            </h3>
+            <p class="mt-5 text-sm sm:text-base text-white/75 leading-[1.75]">
+              Личный план на день для каждого сотрудника, чтобы <strong class="editorial-highlight">успевать главное и не отвлекаться на мелочи</strong>. Подскажет сотруднику, когда и чем лучше заниматься, чтобы работать максимально продуктивно. Дополнительный элемент контроля и дисциплины сотрудника.
+            </p>
+          </div>
+        </article>
+
+        <!-- 5. ТЗ НА ПОИСК И НАЙМ -->
+        <article class="bento-card square-module p-8 sm:p-11 lg:p-12 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between gap-4 pb-6 mb-7 border-b border-white/10">
+              <div class="card-icon w-12 h-12 border border-white/15 bg-white/5 flex items-center justify-center text-white transition-colors">
+                <svg class="w-5 h-5 stroke-current" fill="none" stroke-width="1.75" viewBox="0 0 24 24">
+                  <path stroke-linecap="square" stroke-linejoin="miter" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </div>
+              <span class="font-mono text-xs font-semibold text-white/40">05</span>
+            </div>
+            <h3 class="font-display font-bold text-base sm:text-lg uppercase tracking-wide text-white">
+              ТЗ НА ПОИСК И НАЙМ
+            </h3>
+            <p class="mt-5 text-sm sm:text-base text-white/75 leading-[1.75]">
+              Точный портрет идеального кандидата, чтобы не тратить время на неподходящих и сразу находить лучших. Нейросеть поможет чётко сформулировать эти требования в виде Технического Задания. Вы взаимодействуете с сотрудником понимая, <strong class="editorial-highlight">какими навыками он должен обладать, какие задачи выполнять</strong>.
+            </p>
+          </div>
+        </article>
+
+        <!-- 6. 10 СЦЕНАРИЕВ РОСТА -->
+        <article class="bento-card square-module p-8 sm:p-11 lg:p-12 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between gap-4 pb-6 mb-7 border-b border-white/10">
+              <div class="card-icon w-12 h-12 border border-white/15 bg-white/5 flex items-center justify-center text-white transition-colors">
+                <svg class="w-5 h-5 stroke-current" fill="none" stroke-width="1.75" viewBox="0 0 24 24">
+                  <path stroke-linecap="square" stroke-linejoin="miter" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+              </div>
+              <span class="font-mono text-xs font-semibold text-white/40">06</span>
+            </div>
+            <h3 class="font-display font-bold text-base sm:text-lg uppercase tracking-wide text-white">
+              10 СЦЕНАРИЕВ РОСТА
+            </h3>
+            <p class="mt-5 text-sm sm:text-base text-white/75 leading-[1.75]">
+              Персональный план развития для каждого сотрудника, чтобы расти профессионально и видеть перспективы в компании. <strong class="editorial-highlight">План от нейросети как повысить свои результаты и приносить больше пользы для компании</strong>. Он показывает сотруднику, какие навыки нужно развивать, какие роли можно занять.
+            </p>
+          </div>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================================
+       БЛОК 3: АНТИ-ОТЧЕТЫ ПОВЫШАЮТ УПРАВЛЯЕМОСТЬ РАБОТЫ ВАШИХ СОТРУДНИКОВ
+       (ПРОСТОРНАЯ КОМПОЗИЦИЯ С РАЗДЕЛЬНЫМИ КВАДРАТНЫМИ БЛОКАМИ)
+       ========================================================================= -->
+  <section class="architectural-paper border-b border-stone-line">
+    <div class="max-w-7xl mx-auto border-x border-stone-line px-6 sm:px-12 lg:px-20 py-24 sm:py-28 lg:py-32">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-stretch">
+        
+        <!-- Левая колонка: Заголовок и архитектурная графика с воздухом (5 колонок) -->
+        <div class="lg:col-span-5 bg-stone-surface border border-stone-line p-8 sm:p-12 lg:p-14 flex flex-col justify-between crosshair crosshair-br">
+          <div>
+            <div class="w-12 h-1 bg-signal mb-8"></div>
+            <h2 class="font-display font-bold text-xl sm:text-3xl leading-[1.28] tracking-tight text-ink uppercase">
+              АНТИ-ОТЧЕТЫ ПОВЫШАЮТ УПРАВЛЯЕМОСТЬ РАБОТЫ ВАШИХ СОТРУДНИКОВ
+            </h2>
+          </div>
+
+          <!-- Минималистичная квадратная архитектурная шкала -->
+          <div class="mt-14 pt-8 border-t border-stone-line flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span class="w-3 h-3 bg-signal"></span>
+              <span class="w-10 h-px bg-stone-line"></span>
+              <span class="w-3 h-3 border-2 border-ink"></span>
+              <span class="w-10 h-px bg-stone-line"></span>
+              <span class="w-3 h-3 border-2 border-ink"></span>
+              <span class="w-10 h-px bg-stone-line"></span>
+              <span class="w-3 h-3 bg-ink"></span>
+            </div>
+            <a href="#steps" aria-label="Вниз" class="w-11 h-11 border border-stone-line bg-stone-bg flex items-center justify-center text-ink hover:border-signal hover:bg-signal hover:text-white transition-colors">
+              <svg class="w-4 h-4 stroke-current" fill="none" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="square" stroke-linejoin="miter" d="M19 9l-7 7-7-7" />
+              </svg>
+            </a>
+          </div>
+        </div>
+
+        <!-- Правая колонка: 4 отдельные квадратные плиты с воздухом между ними (7 колонок) -->
+        <div class="lg:col-span-7 flex flex-col justify-between gap-4 sm:gap-5">
+          
+          <div class="spec-row square-module bg-stone-surface border border-stone-line p-6 sm:p-8 flex items-center justify-between gap-6">
+            <div class="flex items-center gap-6">
+              <span class="w-12 h-12 border border-stone-line bg-stone-bg flex items-center justify-center font-mono text-xs font-bold text-ink shrink-0">
+                01
+              </span>
+              <span class="text-base sm:text-xl font-semibold text-ink">
+                Четко организуют работу вашей команды
+              </span>
+            </div>
+          </div>
+
+          <div class="spec-row square-module bg-stone-surface border border-stone-line p-6 sm:p-8 flex items-center justify-between gap-6">
+            <div class="flex items-center gap-6">
+              <span class="w-12 h-12 border border-stone-line bg-stone-bg flex items-center justify-center font-mono text-xs font-bold text-ink shrink-0">
+                02
+              </span>
+              <span class="text-base sm:text-xl font-semibold text-ink">
+                Проконтролируют результаты
+              </span>
+            </div>
+          </div>
+
+          <div class="spec-row square-module bg-stone-surface border border-stone-line p-6 sm:p-8 flex items-center justify-between gap-6">
+            <div class="flex items-center gap-6">
+              <span class="w-12 h-12 border border-stone-line bg-stone-bg flex items-center justify-center font-mono text-xs font-bold text-ink shrink-0">
+                03
+              </span>
+              <span class="text-base sm:text-xl font-semibold text-ink">
+                Оптимизируют бизнес-процессы
+              </span>
+            </div>
+          </div>
+
+          <div class="spec-row square-module bg-stone-surface border border-stone-line p-6 sm:p-8 flex items-center justify-between gap-6">
+            <div class="flex items-center gap-6">
+              <span class="w-12 h-12 border border-stone-line bg-stone-bg flex items-center justify-center font-mono text-xs font-bold text-ink shrink-0">
+                04
+              </span>
+              <span class="text-base sm:text-xl font-semibold text-ink">
+                Повысят эффективность и чистую прибыль
+              </span>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================================
+       БЛОК 4: КАК ПОЛУЧИТЬ АНТИ-ОТЧЕТЫ?
+       (ПРОСТОРНАЯ 3-КОЛОНОЧНАЯ СЕТКА С ВОЗДУХОМ И ОТДЕЛЬНЫМ ПОДИУМОМ КНОПКИ)
+       ========================================================================= -->
+  <section id="steps" class="obsidian-grid text-white border-b border-obsidian-line">
+    <div class="max-w-7xl mx-auto border-x border-obsidian-line px-6 sm:px-12 lg:px-20 py-24 sm:py-28 lg:py-32">
+      
+      <!-- Верхняя часть: Заголовок + Подзаголовок -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 pb-16 sm:pb-20 border-b border-obsidian-line">
+        <div class="lg:col-span-6">
+          <div class="w-12 h-1 bg-signal mb-6"></div>
+          <h2 class="font-display font-bold text-xl sm:text-3xl lg:text-[32px] tracking-tight uppercase text-white">
+            КАК ПОЛУЧИТЬ АНТИ-ОТЧЕТЫ?
+          </h2>
+        </div>
+        <div class="lg:col-span-6 flex items-end">
+          <p class="text-base sm:text-lg text-white/75 leading-relaxed">
+            3 простых шага к бесплатным инструментам управления сотрудниками в Telegram боте, <strong class="font-bold text-white underline decoration-signal underline-offset-4">без звонков и лишней болтовни</strong>
+          </p>
+        </div>
+      </div>
+
+      <!-- 3 отдельные квадратные карточки шагов с воздушными интервалами -->
+      <div class="mt-16 sm:mt-20 grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-10">
+        
+        <!-- Шаг 1 -->
+        <div class="bento-card square-module p-8 sm:p-10 lg:p-12 flex flex-col justify-between">
+          <div>
+            <div class="w-14 h-14 bg-signal text-white font-mono font-bold text-xl flex items-center justify-center mb-10">
+              1
+            </div>
+            <h3 class="font-display font-bold text-base sm:text-lg uppercase tracking-wide text-white">
+              ПРЕДОСТАВЬТЕ ИНФОРМАЦИЮ
+            </h3>
+            <p class="mt-5 text-sm sm:text-base text-white/75 leading-[1.75]">
+              Чтобы подобрать максимально точные инструменты под ваши задачи, ответьте на несколько вопросов в Telegram - <strong class="editorial-highlight">это займет не больше 20 минут</strong>.
+            </p>
+          </div>
+        </div>
+
+        <!-- Шаг 2 -->
+        <div class="bento-card square-module p-8 sm:p-10 lg:p-12 flex flex-col justify-between">
+          <div>
+            <div class="w-14 h-14 bg-white/5 border border-white/20 text-white font-mono font-bold text-xl flex items-center justify-center mb-10">
+              2
+            </div>
+            <h3 class="font-display font-bold text-base sm:text-lg uppercase tracking-wide text-white">
+              ПОЛУЧИТЕ ИНСТРУМЕНТЫ
+            </h3>
+            <p class="mt-5 text-sm sm:text-base text-white/75 leading-[1.75]">
+              Вам не нужно дополнительно с нами связываться. Пока вы занимаетесь своими делами, <strong class="editorial-highlight">нейросеть самостоятельно соберет ваш набор АНТИ-отчетов</strong>.
+            </p>
+          </div>
+        </div>
+
+        <!-- Шаг 3 -->
+        <div class="bento-card square-module p-8 sm:p-10 lg:p-12 flex flex-col justify-between">
+          <div>
+            <div class="w-14 h-14 bg-white/5 border border-white/20 text-white font-mono font-bold text-xl flex items-center justify-center mb-10">
+              3
+            </div>
+            <h3 class="font-display font-bold text-base sm:text-lg uppercase tracking-wide text-white">
+              ВНЕДРИТЕ В СОТРУДНИКА
+            </h3>
+            <p class="mt-5 text-sm sm:text-base text-white/75 leading-[1.75]">
+              Бот отправит вам сообщение с готовыми <strong class="editorial-highlight">инструментами и пошаговым руководством по безопасному внедрению в сотрудника</strong>.
+            </p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Просторный подиум с кнопкой действия (переход в app.html) -->
+      <div class="mt-16 sm:mt-20 pt-12 border-t border-obsidian-line flex justify-center">
+        <a
+          href="app.html"
+          class="btn-signal-dark inline-flex items-center justify-center gap-5 px-12 py-5 font-display font-bold text-xs sm:text-sm uppercase tracking-wider group"
+        >
+          <span>ПОПРОБОВАТЬ БЕСПЛАТНО</span>
+          <svg class="w-4 h-4 stroke-current group-hover:translate-x-1 transition-transform" fill="none" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="square" stroke-linejoin="miter" d="M5 12h14M13 5l7 7-7 7" />
+          </svg>
+        </a>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- =========================================================================
+       БЛОК 5: ОСТАЛИСЬ ВОПРОСЫ? (ЧИСТЫЙ КВАДРАТНЫЙ МОДУЛЬ В ПАСПАРТУ)
+       ========================================================================= -->
+  <section class="architectural-paper border-b border-stone-line">
+    <div class="max-w-7xl mx-auto border-x border-stone-line px-6 sm:px-12 lg:px-20 py-24 sm:py-28 lg:py-32">
+      <div class="square-module border border-stone-line bg-stone-surface p-8 sm:p-14 lg:p-20 flex flex-col lg:flex-row lg:items-center justify-between gap-10 crosshair crosshair-br relative overflow-hidden">
+        
+        <div class="max-w-2xl relative z-10">
+          <div class="w-12 h-1 bg-signal mb-6"></div>
+          <h2 class="font-display font-bold text-xl sm:text-3xl lg:text-[32px] tracking-tight text-ink uppercase">
+            ОСТАЛИСЬ ВОПРОСЫ?
+          </h2>
+          <p class="mt-5 text-base sm:text-lg text-ink-secondary leading-relaxed">
+            Оставьте заявку на консультацию и узнайте, как повысить результаты вашего бизнеса с помощью нейросетей.
+          </p>
+        </div>
+
+        <div class="relative z-10 shrink-0">
+          <button
+            type="button"
+            onclick="openTgModal()"
+            class="btn-signal inline-flex items-center justify-center gap-4 px-9 py-5 font-display font-bold text-xs sm:text-sm uppercase tracking-wider"
+          >
+            <span>ОСТАВИТЬ ЗАЯВКУ НА КОНСУЛЬТАЦИЮ</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================================
+       ПОДВАЛ (FOOTER — ЛЕГКИЙ ГОРИЗОНТАЛЬНЫЙ ФОРМАТ БЕЗ СБОРА ПДН)
+       ========================================================================= -->
+  <footer class="bg-stone-surface border-t border-stone-line text-ink">
+    <div class="max-w-7xl mx-auto border-x border-stone-line px-6 sm:px-12 lg:px-20 py-10 sm:py-12 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 lg:gap-8">
+      
+      <!-- Слева: Название и подпись -->
+      <div class="shrink-0">
+        <div class="font-display font-bold text-sm sm:text-base text-ink flex items-center gap-2.5">
+          <span class="w-2 h-2 bg-signal"></span>
+          <span>Сервис Анти-Отчеты</span>
+        </div>
+        <p class="mt-1.5 text-xs sm:text-sm text-ink-muted">
+          Операционный менеджмент и автоматизация
+        </p>
+      </div>
+
+      <!-- По центру: Контакты TG и EMAIL -->
+      <div class="flex flex-wrap items-center gap-6 sm:gap-10 font-mono text-xs sm:text-sm shrink-0">
+        <div class="flex items-center gap-2">
+          <span class="text-ink-muted">TG:</span>
+          <button
+            type="button"
+            onclick="openTgModal()"
+            class="text-ink font-semibold hover:text-signal transition-colors"
+          >
+            @SerjMuzikin
+          </button>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-ink-muted">EMAIL:</span>
+          <a
+            href="mailto:muzikin.s@yandex.ru"
+            class="text-ink font-semibold hover:text-signal transition-colors"
+          >
+            muzikin.s@yandex.ru
+          </a>
+        </div>
+      </div>
+
+      <!-- Справа: Дисклеймер об отсутствии сбора данных и копирайт -->
+      <div class="lg:text-right text-xs text-ink-muted leading-relaxed shrink-0">
+        <p>Сайт не собирает и не хранит ваши персональные данные.</p>
+        <p class="mt-1">© 2026 Сервис Анти-Отчеты. Все права защищены.</p>
+      </div>
+
+    </div>
+  </footer>
+
+  <!-- =========================================================================
+       УНИВЕРСАЛЬНОЕ ПРОМЕЖУТОЧНОЕ ПОП-АП ОКНО (ДЕМО-РЕЖИМ -> TELEGRAM)
+       ========================================================================= -->
+  <div
+    id="tgModal"
+    onclick="if(event.target === this) closeTgModal()"
+    class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
+  >
+    <div class="w-full max-w-lg bg-stone-surface border border-stone-line p-8 sm:p-11 shadow-2xl relative square-module">
+      <div class="flex items-start justify-between gap-4 pb-5 border-b border-stone-line">
+        <div>
+          <div class="inline-flex items-center gap-2 px-2.5 py-1 bg-signal/10 border border-signal/30 font-mono text-[11px] font-semibold uppercase tracking-wider text-signal mb-3">
+            <span class="w-1.5 h-1.5 bg-signal"></span>
+            <span>ДЕМО-РЕЖИМ // ЗАЯВКА НА ПОДКЛЮЧЕНИЕ</span>
+          </div>
+          <h3 class="font-display font-bold text-base sm:text-xl text-ink uppercase leading-snug">
+            Подключение и интеграция системы «Анти-Отчёты»
+          </h3>
+        </div>
+        <button
+          type="button"
+          onclick="closeTgModal()"
+          aria-label="Закрыть окно"
+          class="w-9 h-9 border border-stone-line bg-stone-bg hover:border-ink text-ink flex items-center justify-center text-base leading-none shrink-0 transition-colors"
+        >
+          ✕
+        </button>
+      </div>
+
+      <p class="mt-6 text-sm sm:text-base text-ink-secondary leading-relaxed">
+        Сейчас сервис работает в демонстрационном режиме. Чтобы оставить заявку на подключение, внедрить систему в вашу команду или обсудить интеграцию под ваши бизнес-процессы — напишите напрямую автору проекта в Telegram.
+      </p>
+
+      <div class="mt-8 space-y-3.5">
+        <a
+          href="https://t.me/SerjMuzikin"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="btn-signal w-full py-4 px-6 font-display font-bold text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-3"
+        >
+          <span>Написать в Telegram (@SerjMuzikin) →</span>
+        </a>
+
+        <a
+          href="app.html"
+          class="w-full py-4 px-6 border border-ink bg-obsidian text-white hover:bg-ink-secondary font-mono text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors"
+        >
+          <span>Открыть интерактивный демо-прототип</span>
+        </a>
+
+        <button
+          type="button"
+          onclick="closeTgModal()"
+          class="w-full py-3 border border-stone-line bg-stone-bg hover:bg-stone-subtle font-mono text-xs uppercase tracking-wider text-ink-secondary transition-colors"
+        >
+          Закрыть окно
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function openTgModal() {
+      const modal = document.getElementById('tgModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeTgModal() {
+      const modal = document.getElementById('tgModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') {
+        closeTgModal();
+      }
+    });
+  </script>
+</body>
+</html>
