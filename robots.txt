@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://djuls70.github.io/anti-otchety/

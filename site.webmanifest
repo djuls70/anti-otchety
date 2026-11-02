@@ -1,0 +1,23 @@
+{
+  "name": "Сервис Анти-Отчеты — 10 регламентов для контроля сотрудников за 30 минут",
+  "short_name": "Анти-Отчеты",
+  "description": "Наговорите голосом рассказ о должности на 3 минуты, и система сама сформирует вам 10 готовых управленческих документов.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#F3F1EA",
+  "theme_color": "#111317",
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}
